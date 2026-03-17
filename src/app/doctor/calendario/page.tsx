@@ -104,10 +104,10 @@ export default function CalendarioPage() {
                 return (
                   <button key={day} onClick={() => setSelectedDate(dateStr)}
                     className={`relative p-2 min-h-[60px] rounded-lg text-left transition-all ${
-                      isSelected ? 'bg-primary-50 ring-2 ring-primary-500' :
+                      isSelected ? 'bg-salmon-50 ring-2 ring-salmon-400' :
                       isToday ? 'bg-blue-50' : 'hover:bg-gray-50'
                     }`}>
-                    <span className={`text-sm ${isToday ? 'font-bold text-primary-600' : 'text-gray-700'}`}>{day}</span>
+                    <span className={`text-sm ${isToday ? 'font-bold text-salmon-500' : 'text-gray-700'}`}>{day}</span>
                     <div className="mt-1 space-y-0.5">
                       {dayAppts.slice(0, 3).map(a => (
                         <div key={a.id} className={`w-full h-1.5 rounded-full ${statusColors[a.status]}`}></div>
@@ -170,9 +170,9 @@ export default function CalendarioPage() {
                 const dateStr = d.toISOString().split('T')[0];
                 const isToday = new Date().toISOString().split('T')[0] === dateStr;
                 return (
-                  <div key={dateStr} className={`p-2 text-center border-l ${isToday ? 'bg-primary-50' : ''}`}>
+                  <div key={dateStr} className={`p-2 text-center border-l ${isToday ? 'bg-salmon-50' : ''}`}>
                     <p className="text-xs text-gray-500">{DAY_NAMES[d.getDay()].slice(0, 3)}</p>
-                    <p className={`text-lg font-semibold ${isToday ? 'text-primary-600' : 'text-gray-900'}`}>{d.getDate()}</p>
+                    <p className={`text-lg font-semibold ${isToday ? 'text-salmon-500' : 'text-gray-900'}`}>{d.getDate()}</p>
                   </div>
                 );
               })}

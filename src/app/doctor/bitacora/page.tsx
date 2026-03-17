@@ -100,9 +100,9 @@ export default function BitacoraPage() {
               {patientList.map(p => (
                 <button key={p.id} onClick={() => { setSelectedPatient(p); setShowForm(false); }}
                   className={`w-full flex items-center gap-3 p-3 rounded-lg text-left transition-colors ${
-                    selectedPatient?.id === p.id ? 'bg-primary-50 ring-1 ring-primary-200' : 'hover:bg-gray-50'
+                    selectedPatient?.id === p.id ? 'bg-salmon-50 ring-1 ring-salmon-200' : 'hover:bg-gray-50'
                   }`}>
-                  <div className="w-9 h-9 bg-primary-100 rounded-full flex items-center justify-center text-primary-700 font-bold text-xs">
+                  <div className="w-9 h-9 bg-salmon-100 rounded-full flex items-center justify-center text-salmon-700 font-bold text-xs">
                     {p.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
                   </div>
                   <div>
@@ -141,7 +141,7 @@ export default function BitacoraPage() {
                         <span className="text-xl">{moodEmojis[Math.min(Math.floor(formData.mood / 2.5), 4)]}</span>
                         <input type="range" min="1" max="10" value={formData.mood}
                           onChange={e => setFormData({ ...formData, mood: parseInt(e.target.value) })}
-                          className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-primary-600" />
+                          className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-salmon-400" />
                         <span className="text-sm font-medium w-8 text-center">{formData.mood}</span>
                       </div>
                     </div>
@@ -152,7 +152,7 @@ export default function BitacoraPage() {
                         {SYMPTOMS.map(s => (
                           <button key={s} type="button" onClick={() => toggleSymptom(s)}
                             className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
-                              formData.symptoms.includes(s) ? 'bg-primary-100 text-primary-700 ring-1 ring-primary-300' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                              formData.symptoms.includes(s) ? 'bg-salmon-100 text-salmon-700 ring-1 ring-salmon-300' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                             }`}>
                             {s}
                           </button>
@@ -178,7 +178,7 @@ export default function BitacoraPage() {
                         {(['improving', 'stable', 'declining'] as const).map(p => (
                           <button key={p} type="button" onClick={() => setFormData({ ...formData, progress: p })}
                             className={`py-2 rounded-lg text-sm font-medium border transition-colors ${
-                              formData.progress === p ? 'border-primary-500 bg-primary-50 text-primary-700' : 'border-gray-200 text-gray-500'
+                              formData.progress === p ? 'border-salmon-400 bg-salmon-50 text-salmon-700' : 'border-gray-200 text-gray-500'
                             }`}>
                             {progressLabels[p]}
                           </button>

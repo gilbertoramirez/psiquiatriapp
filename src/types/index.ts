@@ -120,3 +120,28 @@ export interface DashboardStats {
   pendingPayments: number;
   completedToday: number;
 }
+
+export interface BlogPost {
+  id: string;
+  doctorId: string;
+  doctorName: string;
+  title: string;
+  content: string;
+  excerpt: string;
+  category: 'research' | 'wellness' | 'medication' | 'therapy' | 'news';
+  tags: string[];
+  publishedAt: string;
+  updatedAt: string;
+  published: boolean;
+  comments: BlogComment[];
+}
+
+export interface BlogComment {
+  id: string;
+  postId: string;
+  userId: string;
+  userName: string;
+  userRole: UserRole;
+  content: string;
+  createdAt: string;
+}
