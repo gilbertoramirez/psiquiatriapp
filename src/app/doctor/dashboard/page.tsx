@@ -66,7 +66,7 @@ export default function DashboardPage() {
             {todayAppts.map(apt => (
               <div key={apt.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
                 <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 bg-primary-100 rounded-full flex items-center justify-center text-primary-700 font-bold text-sm">
+                  <div className="w-10 h-10 bg-salmon-100 rounded-full flex items-center justify-center text-salmon-700 font-bold text-sm">
                     {apt.patientName?.split(' ').map(n => n[0]).join('').slice(0, 2)}
                   </div>
                   <div>

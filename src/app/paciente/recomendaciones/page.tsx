@@ -61,7 +61,7 @@ export default function RecomendacionesPage() {
 
       {selected ? (
         <div>
-          <button onClick={() => setSelected(null)} className="flex items-center gap-2 text-primary-600 hover:text-primary-700 mb-4 text-sm font-medium">
+          <button onClick={() => setSelected(null)} className="flex items-center gap-2 text-salmon-500 hover:text-salmon-600 mb-4 text-sm font-medium">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
             Volver
           </button>
@@ -116,7 +116,7 @@ export default function RecomendacionesPage() {
                     <span className="font-medium">{selected.steps.filter(s => s.completed).length}/{selected.steps.length}</span>
                   </div>
                   <div className="mt-2 h-2 bg-gray-200 rounded-full overflow-hidden">
-                    <div className="h-full bg-accent-500 rounded-full transition-all" style={{ width: `${(selected.steps.filter(s => s.completed).length / selected.steps.length) * 100}%` }}></div>
+                    <div className="h-full bg-salmon-400 rounded-full transition-all" style={{ width: `${(selected.steps.filter(s => s.completed).length / selected.steps.length) * 100}%` }}></div>
                   </div>
                 </div>
               </div>
@@ -146,7 +146,7 @@ export default function RecomendacionesPage() {
                   {rec.steps.length > 0 && (
                     <div className="flex items-center gap-3">
                       <div className="flex-1 h-1.5 bg-gray-200 rounded-full overflow-hidden">
-                        <div className="h-full bg-accent-500 rounded-full" style={{ width: `${progress}%` }}></div>
+                        <div className="h-full bg-salmon-400 rounded-full" style={{ width: `${progress}%` }}></div>
                       </div>
                       <span className="text-xs text-gray-500 font-medium">{progress}%</span>
                     </div>

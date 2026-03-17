@@ -21,7 +21,7 @@ export default function RecetasPage() {
 
       {selected ? (
         <div>
-          <button onClick={() => setSelected(null)} className="flex items-center gap-2 text-primary-600 hover:text-primary-700 mb-4 text-sm font-medium">
+          <button onClick={() => setSelected(null)} className="flex items-center gap-2 text-salmon-500 hover:text-salmon-600 mb-4 text-sm font-medium">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
             Volver a recetas
           </button>
@@ -33,7 +33,7 @@ export default function RecetasPage() {
                 <p className="text-sm text-gray-500">Fecha: {new Date(selected.date).toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
                 <p className="text-sm text-gray-500">Dr(a): {selected.doctorName}</p>
               </div>
-              <span className="text-xs bg-primary-100 text-primary-700 px-3 py-1 rounded-full font-medium">#{selected.id.slice(-6)}</span>
+              <span className="text-xs bg-salmon-100 text-salmon-700 px-3 py-1 rounded-full font-medium">#{selected.id.slice(-6)}</span>
             </div>
 
             <div className="mb-6">

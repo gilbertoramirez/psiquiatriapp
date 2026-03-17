@@ -110,10 +110,10 @@ export default function DoctorRecetasPage() {
 
       {/* Tabs */}
       <div className="flex gap-2 mb-6 bg-gray-100 rounded-lg p-1 w-fit">
-        <button onClick={() => setTab('prescriptions')} className={`px-4 py-2 rounded-md text-sm font-medium ${tab === 'prescriptions' ? 'bg-white shadow-sm text-primary-700' : 'text-gray-500'}`}>
+        <button onClick={() => setTab('prescriptions')} className={`px-4 py-2 rounded-md text-sm font-medium ${tab === 'prescriptions' ? 'bg-white shadow-sm text-salmon-700' : 'text-gray-500'}`}>
           Recetas Médicas
         </button>
-        <button onClick={() => setTab('recommendations')} className={`px-4 py-2 rounded-md text-sm font-medium ${tab === 'recommendations' ? 'bg-white shadow-sm text-primary-700' : 'text-gray-500'}`}>
+        <button onClick={() => setTab('recommendations')} className={`px-4 py-2 rounded-md text-sm font-medium ${tab === 'recommendations' ? 'bg-white shadow-sm text-salmon-700' : 'text-gray-500'}`}>
           Recomendaciones
         </button>
       </div>
@@ -140,7 +140,7 @@ export default function DoctorRecetasPage() {
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <label className="label-field mb-0">Medicamentos</label>
-                  <button type="button" onClick={addMedication} className="text-primary-600 text-sm font-medium hover:text-primary-700">+ Agregar</button>
+                  <button type="button" onClick={addMedication} className="text-salmon-500 text-sm font-medium hover:text-salmon-600">+ Agregar</button>
                 </div>
                 {rxForm.medications.map((med, i) => (
                   <div key={i} className="bg-gray-50 rounded-lg p-4 mb-3">
@@ -219,7 +219,7 @@ export default function DoctorRecetasPage() {
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <label className="label-field mb-0">Pasos a seguir</label>
-                  <button type="button" onClick={addStep} className="text-primary-600 text-sm font-medium hover:text-primary-700">+ Agregar paso</button>
+                  <button type="button" onClick={addStep} className="text-salmon-500 text-sm font-medium hover:text-salmon-600">+ Agregar paso</button>
                 </div>
                 {recForm.steps.map((step, i) => (
                   <div key={i} className="flex items-center gap-2 mb-2">

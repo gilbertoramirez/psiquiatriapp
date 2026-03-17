@@ -195,23 +195,23 @@ export default function CitasPage() {
                     disabled={!available}
                     onClick={() => setSelectedDate(new Date(year, month, day))}
                     className={`relative p-2 text-sm rounded-lg transition-all ${
-                      isSelected ? 'bg-primary-600 text-white font-bold shadow-md' :
-                      isToday ? 'bg-primary-50 text-primary-700 font-semibold' :
-                      available ? 'hover:bg-primary-50 text-gray-700 cursor-pointer' :
+                      isSelected ? 'bg-salmon-400 text-white font-bold shadow-md' :
+                      isToday ? 'bg-salmon-50 text-salmon-700 font-semibold' :
+                      available ? 'hover:bg-salmon-50 text-gray-700 cursor-pointer' :
                       'text-gray-300 cursor-not-allowed'
                     }`}
                   >
                     {day}
-                    {hasAppt && <div className="absolute bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 bg-accent-500 rounded-full"></div>}
+                    {hasAppt && <div className="absolute bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 bg-primary-500 rounded-full"></div>}
                   </button>
                 );
               })}
             </div>
 
             <div className="mt-4 flex gap-4 text-xs text-gray-500">
-              <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded bg-primary-100 border border-primary-300"></div> Hoy</div>
-              <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded bg-primary-600"></div> Seleccionado</div>
-              <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-accent-500"></div> Con cita</div>
+              <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded bg-salmon-100 border border-salmon-300"></div> Hoy</div>
+              <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded bg-salmon-400"></div> Seleccionado</div>
+              <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-primary-500"></div> Con cita</div>
             </div>
 
             <div className="mt-4 p-3 bg-gray-50 rounded-lg text-xs text-gray-500">
@@ -238,8 +238,8 @@ export default function CitasPage() {
                       disabled={!slot.available}
                       onClick={() => setSelectedTime(slot.time)}
                       className={`py-3 px-4 rounded-lg text-sm font-medium transition-all ${
-                        selectedTime === slot.time ? 'bg-primary-600 text-white shadow-md' :
-                        slot.available ? 'bg-gray-100 text-gray-700 hover:bg-primary-50 hover:text-primary-700' :
+                        selectedTime === slot.time ? 'bg-salmon-400 text-white shadow-md' :
+                        slot.available ? 'bg-gray-100 text-gray-700 hover:bg-salmon-50 hover:text-salmon-700' :
                         'bg-gray-50 text-gray-300 cursor-not-allowed line-through'
                       }`}
                     >
@@ -262,13 +262,13 @@ export default function CitasPage() {
                       </select>
                     </div>
 
-                    <div className="bg-primary-50 rounded-lg p-4 mb-4">
+                    <div className="bg-salmon-50 rounded-lg p-4 mb-4">
                       <div className="flex justify-between items-center">
                         <div>
-                          <p className="font-medium text-primary-900">Dra. María García López</p>
-                          <p className="text-sm text-primary-700">{selectedTime} hrs - {DAY_NAMES[selectedDate.getDay()]} {selectedDate.getDate()}/{selectedDate.getMonth() + 1}/{selectedDate.getFullYear()}</p>
+                          <p className="font-medium text-gray-900">Dra. María García López</p>
+                          <p className="text-sm text-salmon-700">{selectedTime} hrs - {DAY_NAMES[selectedDate.getDay()]} {selectedDate.getDate()}/{selectedDate.getMonth() + 1}/{selectedDate.getFullYear()}</p>
                         </div>
-                        <p className="text-xl font-bold text-primary-700">$1,500</p>
+                        <p className="text-xl font-bold text-salmon-700">$1,500</p>
                       </div>
                     </div>
 
@@ -300,8 +300,8 @@ export default function CitasPage() {
             myAppointments.sort((a, b) => b.date.localeCompare(a.date)).map(apt => (
               <div key={apt.id} className="card flex items-center justify-between">
                 <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 bg-primary-100 rounded-xl flex items-center justify-center">
-                    <svg className="w-6 h-6 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                  <div className="w-12 h-12 bg-salmon-100 rounded-xl flex items-center justify-center">
+                    <svg className="w-6 h-6 text-salmon-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
                   </div>
                   <div>
                     <p className="font-medium text-gray-900">{apt.doctorName}</p>

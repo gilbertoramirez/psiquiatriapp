@@ -60,6 +60,20 @@ export const payments = {
   create: (data: Record<string, unknown>) => fetchAPI('/payments', { method: 'POST', body: JSON.stringify(data) }),
 };
 
+// Stripe
+export const stripeApi = {
+  createCheckout: (appointmentId: string) => fetchAPI('/stripe/checkout', { method: 'POST', body: JSON.stringify({ appointmentId }) }),
+  verifyPayment: (sessionId: string, appointmentId: string) => fetchAPI('/stripe/verify', { method: 'POST', body: JSON.stringify({ sessionId, appointmentId }) }),
+};
+
+// Blog
+export const blog = {
+  list: () => fetchAPI('/blog'),
+  get: (id: string) => fetchAPI(`/blog?id=${id}`),
+  create: (data: Record<string, unknown>) => fetchAPI('/blog', { method: 'POST', body: JSON.stringify(data) }),
+  comment: (postId: string, content: string) => fetchAPI('/blog', { method: 'PATCH', body: JSON.stringify({ postId, content }) }),
+};
+
 // Patients (doctor)
 export const patients = {
   stats: () => fetchAPI('/patients'),
