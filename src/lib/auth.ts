@@ -29,13 +29,19 @@ export function verifyToken(token: string): { id: string; email: string; role: s
 }
 
 // Password storage (in production use a real DB)
-const passwords: Map<string, string> = new Map();
+// Uses globalThis to persist across Next.js hot reloads
+const globalForAuth = globalThis as unknown as { __psiquiatriapp_passwords?: Map<string, string> };
 
-// Pre-set doctor password
-(async () => {
-  const hash = await hashPassword('doctor123');
-  passwords.set('doc-1', hash);
-})();
+if (!globalForAuth.__psiquiatriapp_passwords) {
+  globalForAuth.__psiquiatriapp_passwords = new Map();
+  // Pre-set doctor password
+  (async () => {
+    const hash = await hashPassword('doctor123');
+    globalForAuth.__psiquiatriapp_passwords!.set('doc-1', hash);
+  })();
+}
+
+const passwords = globalForAuth.__psiquiatriapp_passwords;
 
 export function getPasswordStore() {
   return passwords;
