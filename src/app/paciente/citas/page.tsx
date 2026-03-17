@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { appointments as appointmentsApi } from '@/lib/api';
 import { Appointment, TimeSlot } from '@/types';
 
@@ -26,13 +27,20 @@ const dayNames: Record<number, string> = {
   4: 'thursday', 5: 'friday', 6: 'saturday',
 };
 
+function formatDateLocal(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
 function generateTimeSlots(date: Date, existingAppointments: Appointment[]): TimeSlot[] {
   const dayOfWeek = date.getDay();
   const dayName = dayNames[dayOfWeek];
   const slots = DOCTOR_HOURS[dayName];
   if (!slots) return [];
 
-  const dateStr = date.toISOString().split('T')[0];
+  const dateStr = formatDateLocal(date);
   const bookedTimes = existingAppointments
     .filter(a => a.date === dateStr && a.status !== 'cancelled')
     .map(a => a.startTime);
@@ -64,6 +72,8 @@ export default function CitasPage() {
   const [showBooking, setShowBooking] = useState(false);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
+  const [showPaymentLink, setShowPaymentLink] = useState(false);
+  const router = useRouter();
 
   const loadAppointments = useCallback(async () => {
     try {
@@ -89,14 +99,15 @@ export default function CitasPage() {
     try {
       await appointmentsApi.create({
         doctorId: 'doc-1',
-        date: selectedDate.toISOString().split('T')[0],
+        date: formatDateLocal(selectedDate),
         startTime: selectedTime,
         type: appointmentType,
       });
-      setMessage({ type: 'success', text: '¡Cita agendada exitosamente! Procede al pago para confirmar.' });
+      setMessage({ type: 'success', text: '¡Cita agendada exitosamente!' });
       setSelectedDate(null);
       setSelectedTime(null);
       setShowBooking(false);
+      setShowPaymentLink(true);
       loadAppointments();
     } catch (err: unknown) {
       setMessage({ type: 'error', text: err instanceof Error ? err.message : 'Error al agendar cita' });
@@ -125,7 +136,7 @@ export default function CitasPage() {
   };
 
   const hasAppointment = (day: number) => {
-    const dateStr = new Date(year, month, day).toISOString().split('T')[0];
+    const dateStr = formatDateLocal(new Date(year, month, day));
     return myAppointments.some(a => a.date === dateStr && a.status !== 'cancelled');
   };
 
@@ -158,6 +169,18 @@ export default function CitasPage() {
       {message.text && (
         <div className={`mb-4 p-4 rounded-lg ${message.type === 'success' ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>
           {message.text}
+        </div>
+      )}
+
+      {showPaymentLink && (
+        <div className="mb-4 p-4 rounded-lg bg-salmon-50 border border-salmon-200 flex items-center justify-between">
+          <div>
+            <p className="font-medium text-salmon-800">Tienes pagos pendientes</p>
+            <p className="text-sm text-salmon-600">Realiza el pago para confirmar tu cita</p>
+          </div>
+          <button onClick={() => { setShowPaymentLink(false); router.push('/paciente/pagos'); }} className="btn-primary text-sm py-2">
+            Ir a Pagar
+          </button>
         </div>
       )}
 
@@ -309,13 +332,20 @@ export default function CitasPage() {
                     <p className="text-xs text-gray-400 capitalize">{apt.type === 'initial' ? 'Primera consulta' : apt.type === 'followup' ? 'Seguimiento' : 'Urgencia'}</p>
                   </div>
                 </div>
-                <div className="text-right">
-                  <span className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${statusColors[apt.status]}`}>
-                    {statusLabels[apt.status]}
-                  </span>
-                  <p className={`text-xs mt-1 ${apt.paymentStatus === 'paid' ? 'text-green-600' : 'text-orange-600'}`}>
-                    {apt.paymentStatus === 'paid' ? 'Pagada' : 'Pago pendiente'}
-                  </p>
+                <div className="text-right flex items-center gap-3">
+                  <div>
+                    <span className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${statusColors[apt.status]}`}>
+                      {statusLabels[apt.status]}
+                    </span>
+                    <p className={`text-xs mt-1 ${apt.paymentStatus === 'paid' ? 'text-green-600' : 'text-orange-600'}`}>
+                      {apt.paymentStatus === 'paid' ? 'Pagada' : 'Pago pendiente'}
+                    </p>
+                  </div>
+                  {apt.paymentStatus === 'pending' && apt.status !== 'cancelled' && (
+                    <button onClick={() => router.push('/paciente/pagos')} className="btn-primary text-xs py-1.5 px-3">
+                      Pagar
+                    </button>
+                  )}
                 </div>
               </div>
             ))
