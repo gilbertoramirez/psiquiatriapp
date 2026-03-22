@@ -40,7 +40,9 @@ export default function PatientBlogPage() {
     setLoading(true);
     try {
       const newComment = await blog.comment(selected.id, comment);
-      setSelected(prev => prev ? { ...prev, comments: [...prev.comments, newComment] } : null);
+      const updatedPost = { ...selected, comments: [...selected.comments, newComment] };
+      setSelected(updatedPost);
+      setPosts(prev => prev.map(p => p.id === selected.id ? updatedPost : p));
       setComment('');
     } catch { /* ignore */ }
     setLoading(false);
