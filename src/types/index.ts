@@ -167,6 +167,112 @@ export interface PatientLog {
   bloqueado: boolean;               // Inmutable una vez firmado
 }
 
+// Historia Clínica (NOM-004-SSA3-2012 numeral 6.1)
+export interface FichaIdentificacion {
+  curp?: string;
+  nombre: string;
+  edad: number;
+  sexo: 'masculino' | 'femenino' | 'otro';
+  fechaNacimiento: string;
+  lugarNacimiento?: string;
+  estadoCivil?: 'soltero' | 'casado' | 'union_libre' | 'divorciado' | 'viudo';
+  escolaridad?: string;
+  ocupacion?: string;
+  religion?: string;
+  grupoEtnico?: string;
+  domicilio?: string;
+  telefono?: string;
+  contactoEmergencia?: string;
+  telefonoEmergencia?: string;
+}
+
+export interface AntecedentesHeredoFamiliares {
+  diabetes?: boolean;
+  hipertension?: boolean;
+  cancer?: boolean;
+  cardiopatias?: boolean;
+  enfermedadesMentales?: boolean;
+  alcoholismo?: boolean;
+  drogadiccion?: boolean;
+  epilepsia?: boolean;
+  otros?: string;
+  observaciones?: string;
+}
+
+export interface AntecedentesPersonalesPatologicos {
+  enfermedadesPrevias?: string;
+  hospitalizaciones?: string;
+  cirugias?: string;
+  traumatismos?: string;
+  alergias?: string;
+  transfusiones?: string;
+  adicciones?: string;
+  medicamentosActuales?: string;
+}
+
+export interface AntecedentesPersonalesNoPatologicos {
+  alimentacion?: string;
+  habitacion?: string;
+  higiene?: string;
+  tabaquismo?: string;
+  alcoholismo?: string;
+  otrasAdicciones?: string;
+  actividadFisica?: string;
+  sueno?: string;
+  inmunizaciones?: string;
+}
+
+export interface AntecedentesPsiquiatricos {
+  diagnosticosPrevios?: string;
+  hospitalizacionesPsiquiatricas?: string;
+  intentosSuicidas?: string;
+  tratamientosPrevios?: string;
+  psicoterapiaPrevia?: string;
+  antecedentesTrauma?: string;
+  historialViolencia?: string;
+}
+
+export interface InterrogatorioPorAparatosYSistemas {
+  cardiovascular?: string;
+  respiratorio?: string;
+  digestivo?: string;
+  genitourinario?: string;
+  endocrino?: string;
+  hematopoyetico?: string;
+  nervioso?: string;
+  musculoEsqueletico?: string;
+  pielAnexos?: string;
+  organosSentidos?: string;
+}
+
+export interface HistoriaClinica {
+  id: string;
+  patientId: string;
+  doctorId: string;
+  doctorNombre: string;
+  doctorCedula: string;
+  fechaCreacion: string;
+  fechaActualizacion: string;
+  fichaIdentificacion: FichaIdentificacion;
+  antecedentesHeredoFamiliares: AntecedentesHeredoFamiliares;
+  antecedentesPersonalesPatologicos: AntecedentesPersonalesPatologicos;
+  antecedentesPersonalesNoPatologicos: AntecedentesPersonalesNoPatologicos;
+  antecedentesPsiquiatricos: AntecedentesPsiquiatricos;
+  padecimientoActual: string;
+  interrogatorio: InterrogatorioPorAparatosYSistemas;
+  exploracionFisica: string;
+  signosVitales: SignosVitales;
+  examenMental: string;
+  resultadosEstudiosPrevios?: string;
+  diagnosticos: DiagnosticoCIE10[];
+  pronostico: string;
+  planTerapeutico: string;
+  indicacionesIniciales: IndicacionMedica[];
+  firmaDigital: string;
+  auditTrail: AuditEntry[];
+  bloqueado: boolean;
+}
+
 export interface Payment {
   id: string;
   appointmentId: string;

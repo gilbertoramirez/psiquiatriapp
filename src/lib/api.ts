@@ -74,6 +74,13 @@ export const blog = {
   comment: (postId: string, content: string) => fetchAPI('/blog', { method: 'PATCH', body: JSON.stringify({ postId, content }) }),
 };
 
+// Historia Clínica (NOM-004 §6.1)
+export const historiaClinica = {
+  get: (patientId: string) => fetchAPI(`/historia-clinica?patientId=${patientId}`),
+  create: (data: Record<string, unknown>) => fetchAPI('/historia-clinica', { method: 'POST', body: JSON.stringify(data) }),
+  update: (patientId: string, seccion: string, datos: unknown) => fetchAPI('/historia-clinica', { method: 'PATCH', body: JSON.stringify({ patientId, seccion, datos }) }),
+};
+
 // Patients (doctor)
 export const patients = {
   stats: () => fetchAPI('/patients'),

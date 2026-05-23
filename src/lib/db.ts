@@ -2,7 +2,7 @@
 // Replace with PostgreSQL/MySQL/MongoDB in production.
 // Uses globalThis to persist data across Next.js hot reloads in development.
 
-import { Patient, Doctor, Appointment, Prescription, Recommendation, PatientLog, Payment, BlogPost } from '@/types';
+import { Patient, Doctor, Appointment, Prescription, Recommendation, PatientLog, Payment, BlogPost, HistoriaClinica } from '@/types';
 
 interface Database {
   patients: Patient[];
@@ -11,6 +11,7 @@ interface Database {
   prescriptions: Prescription[];
   recommendations: Recommendation[];
   patientLogs: PatientLog[];
+  historiasClinicas: HistoriaClinica[];
   payments: Payment[];
   blogPosts: BlogPost[];
 }
@@ -42,6 +43,7 @@ function createDatabase(): Database {
     prescriptions: [],
     recommendations: [],
     patientLogs: [],
+    historiasClinicas: [],
     payments: [],
     blogPosts: [],
   };
