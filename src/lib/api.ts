@@ -39,6 +39,7 @@ export const auth = {
 // Appointments
 export const appointments = {
   list: () => fetchAPI('/appointments'),
+  slots: (date: string) => fetchAPI(`/appointments?type=slots&date=${date}`),
   create: (data: Record<string, string>) => fetchAPI('/appointments', { method: 'POST', body: JSON.stringify(data) }),
 };
 

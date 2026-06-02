@@ -19,6 +19,47 @@ export async function GET(request: NextRequest) {
   const user = getToken(request);
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
 
+  const { searchParams } = new URL(request.url);
+  const type = searchParams.get('type');
+
+  // Return available time slots for a given date
+  if (type === 'slots') {
+    const date = searchParams.get('date');
+    const doctorId = searchParams.get('doctorId') || (user.role === 'doctor' ? user.id : 'doc-1');
+    if (!date) return NextResponse.json({ error: 'Fecha requerida' }, { status: 400 });
+
+    const doctor = db.doctors.find(d => d.id === doctorId);
+    if (!doctor) return NextResponse.json({ error: 'Doctor no encontrado' }, { status: 404 });
+
+    const appointmentDate = new Date(date + 'T12:00:00');
+    const dayOfWeek = appointmentDate.getDay();
+    const dayName = dayNames[dayOfWeek];
+    const availableSlots = doctor.availableHours[dayName];
+
+    if (!availableSlots || availableSlots.length === 0) {
+      return NextResponse.json([]);
+    }
+
+    const bookedTimes = db.appointments
+      .filter(a => a.doctorId === doctorId && a.date === date && a.status !== 'cancelled')
+      .map(a => a.startTime);
+
+    const slots: { time: string; available: boolean }[] = [];
+    availableSlots.forEach(slot => {
+      const [startH, startM] = slot.start.split(':').map(Number);
+      const [endH, endM] = slot.end.split(':').map(Number);
+      let current = startH * 60 + startM;
+      const end = endH * 60 + endM;
+      while (current < end) {
+        const time = `${String(Math.floor(current / 60)).padStart(2, '0')}:${String(current % 60).padStart(2, '0')}`;
+        slots.push({ time, available: !bookedTimes.includes(time) });
+        current += 60;
+      }
+    });
+
+    return NextResponse.json(slots);
+  }
+
   let appointments: Appointment[];
   if (user.role === 'doctor') {
     appointments = db.appointments.filter(a => a.doctorId === user.id);
@@ -39,10 +80,9 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const user = getToken(request);
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
-  if (user.role !== 'patient') return NextResponse.json({ error: 'Solo pacientes pueden agendar citas' }, { status: 403 });
 
   try {
-    const { doctorId, date, startTime, type } = await request.json();
+    const { doctorId, patientId, date, startTime, type } = await request.json();
 
     if (!doctorId || !date || !startTime) {
       return NextResponse.json({ error: 'Datos incompletos' }, { status: 400 });
@@ -92,10 +132,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Este horario ya está ocupado' }, { status: 409 });
     }
 
+    const resolvedPatientId = user.role === 'doctor' ? patientId : user.id;
+    const resolvedDoctorId = user.role === 'doctor' ? user.id : doctorId;
+
     const appointment: Appointment = {
       id: `apt-${uuidv4()}`,
-      patientId: user.id,
-      doctorId,
+      patientId: resolvedPatientId,
+      doctorId: resolvedDoctorId,
       date,
       startTime,
       endTime,

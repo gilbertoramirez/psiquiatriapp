@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { patients as patientsApi } from '@/lib/api';
-import { Patient, PatientLog, DiagnosticoCIE10, IndicacionMedica, SignosVitales } from '@/types';
+import { patients as patientsApi, appointments as appointmentsApi } from '@/lib/api';
+import { Patient, PatientLog, DiagnosticoCIE10, IndicacionMedica, SignosVitales, TimeSlot } from '@/types';
 
 const SYMPTOMS = ['Ansiedad', 'Depresión', 'Insomnio', 'Irritabilidad', 'Fatiga', 'Falta de concentración', 'Aislamiento social', 'Cambios de apetito', 'Pensamientos intrusivos', 'Ataques de pánico'];
 
@@ -46,6 +46,10 @@ export default function BitacoraPage() {
   const [newMed, setNewMed] = useState<IndicacionMedica>({ medicamento: '', dosis: '', via: 'oral', frecuencia: '', duracion: '', instrucciones: '' });
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
+  const [citaSlots, setCitaSlots] = useState<TimeSlot[]>([]);
+  const [citaTime, setCitaTime] = useState('');
+  const [loadingSlots, setLoadingSlots] = useState(false);
+  const [citaScheduled, setCitaScheduled] = useState(false);
 
   useEffect(() => { patientsApi.list().then(setPatientList).catch(() => {}); }, []);
 
@@ -74,6 +78,32 @@ export default function BitacoraPage() {
   };
 
   const toggleSymptom = (s: string) => set('symptoms', formData.symptoms.includes(s) ? formData.symptoms.filter(x => x !== s) : [...formData.symptoms, s]);
+
+  const loadSlots = async (date: string) => {
+    if (!date) { setCitaSlots([]); return; }
+    setLoadingSlots(true);
+    setCitaTime('');
+    setCitaScheduled(false);
+    try {
+      const slots = await appointmentsApi.slots(date);
+      setCitaSlots(slots);
+    } catch { setCitaSlots([]); }
+    setLoadingSlots(false);
+  };
+
+  const handleScheduleCita = async () => {
+    if (!selectedPatient || !formData.proximaCita || !citaTime) return;
+    try {
+      await appointmentsApi.create({
+        patientId: selectedPatient.id,
+        doctorId: 'doc-1',
+        date: formData.proximaCita,
+        startTime: citaTime,
+        type: 'followup',
+      });
+      setCitaScheduled(true);
+    } catch { /* ignore */ }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -382,7 +412,47 @@ export default function BitacoraPage() {
                     <div>
                       <label className="label-field">Próxima cita</label>
                       <input type="date" className="input-field"
-                        value={formData.proximaCita} onChange={e => set('proximaCita', e.target.value)} />
+                        min={new Date().toISOString().split('T')[0]}
+                        value={formData.proximaCita} onChange={e => { set('proximaCita', e.target.value); loadSlots(e.target.value); }} />
+
+                      {formData.proximaCita && (
+                        <div className="mt-2">
+                          {loadingSlots ? (
+                            <p className="text-xs text-gray-400">Cargando horarios...</p>
+                          ) : citaSlots.length === 0 ? (
+                            <p className="text-xs text-red-400">No hay horarios disponibles este día</p>
+                          ) : (
+                            <>
+                              <p className="text-xs text-gray-400 mb-1.5">Horarios disponibles:</p>
+                              <div className="flex flex-wrap gap-1.5">
+                                {citaSlots.map(slot => (
+                                  <button key={slot.time} type="button" disabled={!slot.available}
+                                    onClick={() => { setCitaTime(slot.time); setCitaScheduled(false); }}
+                                    className={`px-3 py-1.5 rounded text-xs font-medium border transition-colors ${
+                                      !slot.available ? 'bg-gray-100 text-gray-300 border-gray-100 cursor-not-allowed line-through' :
+                                      citaTime === slot.time ? 'bg-salmon-50 border-salmon-400 text-salmon-700' :
+                                      'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+                                    }`}>
+                                    {slot.time}
+                                  </button>
+                                ))}
+                              </div>
+                              {citaTime && !citaScheduled && (
+                                <button type="button" onClick={handleScheduleCita}
+                                  className="mt-2 text-xs bg-salmon-50 text-salmon-700 border border-salmon-200 rounded px-3 py-1.5 font-medium hover:bg-salmon-100 transition-colors">
+                                  Agendar cita: {formData.proximaCita} a las {citaTime}
+                                </button>
+                              )}
+                              {citaScheduled && (
+                                <p className="mt-2 text-xs text-green-600 font-medium flex items-center gap-1">
+                                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                                  Cita agendada: {formData.proximaCita} a las {citaTime}
+                                </p>
+                              )}
+                            </>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
 
