@@ -35,6 +35,14 @@ export async function GET(request: NextRequest) {
   const type = searchParams.get('type');
   const patientId = searchParams.get('patientId');
 
+  if (user.role === 'patient') {
+    if (type === 'logs') {
+      const logs = db.patientLogs.filter(l => l.patientId === user.id);
+      return NextResponse.json(logs);
+    }
+    return NextResponse.json({ error: 'No autorizado' }, { status: 403 });
+  }
+
   if (user.role === 'doctor') {
     if (type === 'logs' && patientId) {
       const logs = db.patientLogs.filter(l => l.patientId === patientId && l.doctorId === user.id);

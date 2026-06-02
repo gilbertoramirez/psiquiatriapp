@@ -86,6 +86,7 @@ export const patients = {
   stats: () => fetchAPI('/patients'),
   list: () => fetchAPI('/patients?type=list'),
   logs: (patientId: string) => fetchAPI(`/patients?type=logs&patientId=${patientId}`),
+  myLogs: () => fetchAPI('/patients?type=logs'),
   createLog: (data: Record<string, unknown>) => fetchAPI('/patients', { method: 'POST', body: JSON.stringify(data) }),
   addAddendum: (logId: string, contenido: string) => fetchAPI('/patients', { method: 'PATCH', body: JSON.stringify({ logId, contenido }) }),
 };
