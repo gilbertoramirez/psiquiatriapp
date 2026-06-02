@@ -3,7 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import crypto from 'crypto';
 import { verifyToken } from '@/lib/auth';
 import db from '@/lib/db';
-import { HistoriaClinica, AuditEntry } from '@/types';
+import { HistoriaClinica, AuditEntry, Prescription, IndicacionMedica } from '@/types';
 
 function getToken(request: NextRequest) {
   const auth = request.headers.get('authorization');
@@ -95,6 +95,28 @@ export async function POST(request: NextRequest) {
     };
 
     db.historiasClinicas.push(hc);
+
+    // Auto-create prescription from indicaciones iniciales
+    if (hc.indicacionesIniciales && hc.indicacionesIniciales.length > 0) {
+      const diagText = hc.diagnosticos.map((d: { codigo: string; descripcion: string }) => `${d.codigo} - ${d.descripcion}`).join('; ');
+      const prescription: Prescription = {
+        id: `rx-${uuidv4()}`,
+        patientId: hc.patientId,
+        doctorId: hc.doctorId,
+        date: now,
+        medications: hc.indicacionesIniciales.map((ind: IndicacionMedica) => ({
+          name: ind.medicamento,
+          dosage: ind.dosis,
+          frequency: `${ind.frecuencia} (vía ${ind.via})`,
+          duration: ind.duracion,
+          instructions: ind.instrucciones || '',
+        })),
+        diagnosis: diagText || 'Ver historia clínica',
+        notes: `Generada automáticamente desde historia clínica ${hc.id}`,
+      };
+      db.prescriptions.push(prescription);
+    }
+
     return NextResponse.json(hc, { status: 201 });
   } catch {
     return NextResponse.json({ error: 'Error al crear historia clínica' }, { status: 500 });

@@ -3,7 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import crypto from 'crypto';
 import { verifyToken } from '@/lib/auth';
 import db from '@/lib/db';
-import { PatientLog, AuditEntry } from '@/types';
+import { PatientLog, AuditEntry, Prescription, IndicacionMedica } from '@/types';
 
 function getToken(request: NextRequest) {
   const auth = request.headers.get('authorization');
@@ -161,6 +161,28 @@ export async function POST(request: NextRequest) {
     };
 
     db.patientLogs.push(log);
+
+    // Auto-create prescription from indicaciones
+    if (log.indicaciones && log.indicaciones.length > 0) {
+      const diagText = log.diagnosticos.map((d: { codigo: string; descripcion: string }) => `${d.codigo} - ${d.descripcion}`).join('; ');
+      const prescription: Prescription = {
+        id: `rx-${uuidv4()}`,
+        patientId: log.patientId,
+        doctorId: log.doctorId,
+        date: now,
+        medications: log.indicaciones.map((ind: IndicacionMedica) => ({
+          name: ind.medicamento,
+          dosage: ind.dosis,
+          frequency: `${ind.frecuencia} (vía ${ind.via})`,
+          duration: ind.duracion,
+          instructions: ind.instrucciones || '',
+        })),
+        diagnosis: diagText || 'Ver nota de evolución',
+        notes: `Generada automáticamente desde nota de evolución ${log.id}`,
+      };
+      db.prescriptions.push(prescription);
+    }
+
     return NextResponse.json(log, { status: 201 });
   } catch {
     return NextResponse.json({ error: 'Error al crear registro' }, { status: 500 });
