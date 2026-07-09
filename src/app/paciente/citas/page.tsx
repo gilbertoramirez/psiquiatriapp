@@ -12,17 +12,10 @@ const DAYS_ES: Record<string, string> = {
 const DAY_NAMES = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 const MONTH_NAMES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
 
-// Doctor available hours (matching the default doctor)
-const DOCTOR_HOURS: Record<string, { start: string; end: string }[]> = {
-  thursday: [{ start: '16:00', end: '20:00' }],
-  friday: [{ start: '16:00', end: '20:00' }],
-  saturday: [{ start: '09:00', end: '14:00' }],
-};
-
-const DOCTOR_MODALITY: Record<string, string> = {
-  thursday: 'Presencial y en línea',
-  friday: 'Únicamente en línea',
-  saturday: 'Presencial y en línea',
+const MODALITY_LABELS: Record<string, string> = {
+  both: 'Presencial y en línea',
+  online: 'Únicamente en línea',
+  presencial: 'Únicamente presencial',
 };
 
 const dayNames: Record<number, string> = {
@@ -30,10 +23,20 @@ const dayNames: Record<number, string> = {
   4: 'thursday', 5: 'friday', 6: 'saturday',
 };
 
-function generateTimeSlots(date: Date, existingAppointments: Appointment[]): TimeSlot[] {
+interface DoctorInfo {
+  id: string;
+  name: string;
+  specialty: string;
+  consultationFee: number;
+  availableHours: Record<string, { start: string; end: string }[]>;
+  modalityByDay: Record<string, string> | null;
+  address: string | null;
+}
+
+function generateTimeSlots(date: Date, existingAppointments: Appointment[], doctorHours: Record<string, { start: string; end: string }[]>): TimeSlot[] {
   const dayOfWeek = date.getDay();
   const dayName = dayNames[dayOfWeek];
-  const slots = DOCTOR_HOURS[dayName];
+  const slots = doctorHours[dayName];
   if (!slots) return [];
 
   const dateStr = date.toISOString().split('T')[0];
@@ -51,7 +54,7 @@ function generateTimeSlots(date: Date, existingAppointments: Appointment[]): Tim
     while (current < end) {
       const time = `${String(Math.floor(current / 60)).padStart(2, '0')}:${String(current % 60).padStart(2, '0')}`;
       timeSlots.push({ time, available: !bookedTimes.includes(time) });
-      current += 60; // 1 hour slots
+      current += 60;
     }
   });
 
@@ -60,6 +63,7 @@ function generateTimeSlots(date: Date, existingAppointments: Appointment[]): Tim
 
 export default function CitasPage() {
   const [myAppointments, setMyAppointments] = useState<Appointment[]>([]);
+  const [doctor, setDoctor] = useState<DoctorInfo | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([]);
@@ -76,23 +80,29 @@ export default function CitasPage() {
     } catch { /* ignore */ }
   }, []);
 
-  useEffect(() => { loadAppointments(); }, [loadAppointments]);
+  useEffect(() => {
+    loadAppointments();
+    fetch('/api/doctors')
+      .then(r => r.json())
+      .then((docs: DoctorInfo[]) => { if (docs.length > 0) setDoctor(docs[0]); })
+      .catch(() => {});
+  }, [loadAppointments]);
 
   useEffect(() => {
-    if (selectedDate) {
-      const slots = generateTimeSlots(selectedDate, myAppointments);
+    if (selectedDate && doctor) {
+      const slots = generateTimeSlots(selectedDate, myAppointments, doctor.availableHours);
       setTimeSlots(slots);
       setSelectedTime(null);
     }
-  }, [selectedDate, myAppointments]);
+  }, [selectedDate, myAppointments, doctor]);
 
   const handleBook = async () => {
-    if (!selectedDate || !selectedTime) return;
+    if (!selectedDate || !selectedTime || !doctor) return;
     setLoading(true);
     setMessage({ type: '', text: '' });
     try {
       await appointmentsApi.create({
-        doctorId: 'doc-1',
+        doctorId: doctor.id,
         date: selectedDate.toISOString().split('T')[0],
         startTime: selectedTime,
         type: appointmentType,
@@ -122,10 +132,11 @@ export default function CitasPage() {
   for (let d = 1; d <= daysInMonth; d++) calendarDays.push(d);
 
   const isAvailableDay = (day: number) => {
+    if (!doctor) return false;
     const date = new Date(year, month, day);
     if (date < today) return false;
-    const dayName = dayNames[date.getDay()];
-    return !!DOCTOR_HOURS[dayName];
+    const dn = dayNames[date.getDay()];
+    return !!doctor.availableHours[dn];
   };
 
   const hasAppointment = (day: number) => {
@@ -218,20 +229,23 @@ export default function CitasPage() {
               <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-primary-500"></div> Con cita</div>
             </div>
 
+            {doctor && (
             <div className="mt-4 p-3 bg-gray-50 rounded-lg text-xs text-gray-500 space-y-2">
               <div>
                 <p className="font-medium mb-1">Horarios de atención:</p>
-                {Object.entries(DOCTOR_HOURS).map(([day, slots]) => (
-                  <p key={day}>{DAYS_ES[day]}: {slots.map(s => `${s.start} - ${s.end}`).join(', ')} — <span className="italic">{DOCTOR_MODALITY[day]}</span></p>
+                {Object.entries(doctor.availableHours).map(([day, slots]) => (
+                  <p key={day}>{DAYS_ES[day]}: {(slots as { start: string; end: string }[]).map(s => `${s.start} - ${s.end}`).join(', ')}
+                    {doctor.modalityByDay?.[day] && <span className="italic"> — {MODALITY_LABELS[doctor.modalityByDay[day]] || doctor.modalityByDay[day]}</span>}
+                  </p>
                 ))}
               </div>
               <div>
                 <p className="font-medium mb-1">Modalidades:</p>
-                <p>Presencial: Calle José Guadalupe Zuno 2227, 44150 Obrera Centro, Jalisco, México</p>
+                {doctor.address && <p>Presencial: {doctor.address}</p>}
                 <p>En línea: Se envía enlace de videollamada por Google Meet</p>
               </div>
               <div>
-                <p className="font-medium mb-1">Costo: $1,000 MXN</p>
+                <p className="font-medium mb-1">Costo: ${doctor.consultationFee.toLocaleString()} MXN</p>
                 <p>Pago por transferencia, efectivo o tarjeta</p>
               </div>
               <div>
@@ -242,6 +256,7 @@ export default function CitasPage() {
                 <p>• Inasistencia: pago total de la consulta</p>
               </div>
             </div>
+            )}
           </div>
 
           {/* Time slots & booking */}
@@ -287,11 +302,13 @@ export default function CitasPage() {
                     <div className="bg-salmon-50 rounded-lg p-4 mb-4">
                       <div className="flex justify-between items-center">
                         <div>
-                          <p className="font-medium text-gray-900">Dra. Claudia Anahí Hernández Carrillo</p>
+                          <p className="font-medium text-gray-900">{doctor?.name}</p>
                           <p className="text-sm text-salmon-700">{selectedTime} hrs - {DAY_NAMES[selectedDate.getDay()]} {selectedDate.getDate()}/{selectedDate.getMonth() + 1}/{selectedDate.getFullYear()}</p>
-                          <p className="text-xs text-gray-500 mt-1">{DOCTOR_MODALITY[dayNames[selectedDate.getDay()]]}</p>
+                          {doctor?.modalityByDay?.[dayNames[selectedDate.getDay()]] && (
+                            <p className="text-xs text-gray-500 mt-1">{MODALITY_LABELS[doctor.modalityByDay[dayNames[selectedDate.getDay()]]] || doctor.modalityByDay[dayNames[selectedDate.getDay()]]}</p>
+                          )}
                         </div>
-                        <p className="text-xl font-bold text-salmon-700">$1,000</p>
+                        <p className="text-xl font-bold text-salmon-700">${doctor?.consultationFee.toLocaleString()}</p>
                       </div>
                     </div>
 
