@@ -189,7 +189,7 @@ export default function HomePage() {
               </button>
               <div className="text-center text-xs text-gray-400 mt-3 p-3 bg-gray-50 rounded-lg">
                 <p className="font-medium mb-1">Demo Doctor:</p>
-                <p>dr.garcia@psiquiatriapp.com / doctor123</p>
+                <p>dra.hernandez@psiquiatriapp.com / doctor123</p>
               </div>
             </form>
           ) : (

@@ -23,6 +23,8 @@ export interface Doctor extends User {
   licenseNumber: string;
   consultationFee: number;
   availableHours: AvailableHours;
+  address?: string;
+  modalityByDay?: { [day: string]: 'in-person' | 'online' | 'both' };
 }
 
 export interface AvailableHours {

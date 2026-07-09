@@ -215,6 +215,7 @@ function PagosContent() {
                 <div className="bg-gray-50 rounded-lg p-4 text-sm border border-gray-200">
                   <p className="font-medium text-gray-900 mb-1">Pago en efectivo</p>
                   <p className="text-gray-600">Realiza el pago directamente en el consultorio antes de la consulta.</p>
+                  <p className="text-gray-500 text-xs mt-1">Dirección: Calle José Guadalupe Zuno 2227, 44150 Obrera Centro, Jalisco, México</p>
                 </div>
                 <form onSubmit={handleManualPayment}>
                   <button type="submit" disabled={loading} className="btn-primary w-full mt-4">
