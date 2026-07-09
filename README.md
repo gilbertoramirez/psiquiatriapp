@@ -33,7 +33,7 @@ npm run dev
 Abre http://localhost:3000
 
 ### Credenciales de prueba (Doctor)
-- Email: dr.garcia@psiquiatriapp.com
+- Email: dra.hernandez@psiquiatriapp.com
 - Password: doctor123
 
 ### Registro de pacientes
