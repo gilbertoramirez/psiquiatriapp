@@ -32,10 +32,7 @@ export function verifyToken(token: string): { id: string; email: string; role: s
 const passwords: Map<string, string> = new Map();
 
 // Pre-set doctor password (Dra. Claudia Anahí Hernández Carrillo)
-(async () => {
-  const hash = await hashPassword('doctor123');
-  passwords.set('doc-1', hash);
-})();
+passwords.set('doc-1', bcrypt.hashSync('doctor123', 12));
 
 export function getPasswordStore() {
   return passwords;
