@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { v4 as uuidv4 } from 'uuid';
 import { verifyToken } from '@/lib/auth';
-import db from '@/lib/db';
-import { Appointment } from '@/types';
+import { prisma } from '@/lib/prisma';
 
 function getToken(request: NextRequest) {
   const auth = request.headers.get('authorization');
@@ -19,21 +17,28 @@ export async function GET(request: NextRequest) {
   const user = getToken(request);
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
 
-  let appointments: Appointment[];
-  if (user.role === 'doctor') {
-    appointments = db.appointments.filter(a => a.doctorId === user.id);
-  } else {
-    appointments = db.appointments.filter(a => a.patientId === user.id);
-  }
+  const appointments = await prisma.appointment.findMany({
+    where: user.role === 'doctor' ? { doctorId: user.id } : { patientId: user.id },
+    include: { patient: { select: { name: true } }, doctor: { select: { name: true } } },
+  });
 
-  // Enrich with names
-  appointments = appointments.map(a => ({
-    ...a,
-    patientName: db.patients.find(p => p.id === a.patientId)?.name || 'Paciente',
-    doctorName: db.doctors.find(d => d.id === a.doctorId)?.name || 'Doctor',
+  const result = appointments.map(a => ({
+    id: a.id,
+    patientId: a.patientId,
+    doctorId: a.doctorId,
+    date: a.date,
+    startTime: a.startTime,
+    endTime: a.endTime,
+    status: a.status,
+    type: a.type,
+    notes: a.notes,
+    paymentStatus: a.paymentStatus,
+    amount: a.amount,
+    patientName: a.patient.name,
+    doctorName: a.doctor.name,
   }));
 
-  return NextResponse.json(appointments);
+  return NextResponse.json(result);
 }
 
 export async function POST(request: NextRequest) {
@@ -48,10 +53,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Datos incompletos' }, { status: 400 });
     }
 
-    const doctor = db.doctors.find(d => d.id === doctorId);
+    const doctor = await prisma.doctor.findUnique({ where: { id: doctorId } });
     if (!doctor) return NextResponse.json({ error: 'Doctor no encontrado' }, { status: 404 });
 
-    // Validate the selected date is not in the past
     const appointmentDate = new Date(date + 'T00:00:00');
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -59,10 +63,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No puede agendar citas en fechas pasadas' }, { status: 400 });
     }
 
-    // Validate the time is within available hours
     const dayOfWeek = appointmentDate.getDay();
     const dayName = dayNames[dayOfWeek];
-    const availableSlots = doctor.availableHours[dayName];
+    const availableHours = doctor.availableHours as Record<string, { start: string; end: string }[]>;
+    const availableSlots = availableHours[dayName];
 
     if (!availableSlots || availableSlots.length === 0) {
       return NextResponse.json({ error: 'El doctor no atiende este día' }, { status: 400 });
@@ -75,41 +79,39 @@ export async function POST(request: NextRequest) {
 
     const startMinutes = timeInMinutes(startTime);
     const isValidTime = availableSlots.some(
-      slot => startMinutes >= timeInMinutes(slot.start) && startMinutes < timeInMinutes(slot.end)
+      (slot: { start: string; end: string }) => startMinutes >= timeInMinutes(slot.start) && startMinutes < timeInMinutes(slot.end)
     );
 
     if (!isValidTime) {
       return NextResponse.json({ error: 'Horario no disponible' }, { status: 400 });
     }
 
-    // Check for conflicts
     const endTime = `${String(Math.floor((startMinutes + 60) / 60)).padStart(2, '0')}:${String((startMinutes + 60) % 60).padStart(2, '0')}`;
-    const conflict = db.appointments.find(
-      a => a.doctorId === doctorId && a.date === date && a.startTime === startTime && a.status !== 'cancelled'
-    );
+
+    const conflict = await prisma.appointment.findFirst({
+      where: { doctorId, date, startTime, status: { not: 'cancelled' } },
+    });
 
     if (conflict) {
       return NextResponse.json({ error: 'Este horario ya está ocupado' }, { status: 409 });
     }
 
-    const appointment: Appointment = {
-      id: `apt-${uuidv4()}`,
-      patientId: user.id,
-      doctorId,
-      date,
-      startTime,
-      endTime,
-      status: 'scheduled',
-      type: type || 'followup',
-      paymentStatus: 'pending',
-      amount: doctor.consultationFee,
-    };
-
-    db.appointments.push(appointment);
+    const appointment = await prisma.appointment.create({
+      data: {
+        patientId: user.id,
+        doctorId,
+        date,
+        startTime,
+        endTime,
+        type: type || 'followup',
+        amount: doctor.consultationFee,
+      },
+      include: { doctor: { select: { name: true } } },
+    });
 
     return NextResponse.json({
       ...appointment,
-      doctorName: doctor.name,
+      doctorName: appointment.doctor.name,
     }, { status: 201 });
   } catch {
     return NextResponse.json({ error: 'Error al crear cita' }, { status: 500 });

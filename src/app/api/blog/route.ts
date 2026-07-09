@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { v4 as uuidv4 } from 'uuid';
 import { verifyToken } from '@/lib/auth';
-import db from '@/lib/db';
-import { BlogPost, BlogComment } from '@/types';
+import { prisma } from '@/lib/prisma';
 
 function getToken(request: NextRequest) {
   const auth = request.headers.get('authorization');
@@ -10,33 +8,32 @@ function getToken(request: NextRequest) {
   return verifyToken(auth.substring(7));
 }
 
-// GET - list all published posts or single post by id
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const postId = searchParams.get('id');
 
   if (postId) {
-    const post = db.blogPosts.find(p => p.id === postId);
+    const post = await prisma.blogPost.findUnique({
+      where: { id: postId },
+      include: { comments: true },
+    });
     if (!post) return NextResponse.json({ error: 'Post no encontrado' }, { status: 404 });
     return NextResponse.json(post);
   }
 
-  // Check if user is authenticated to show drafts for doctors
   const user = getToken(request);
-  let posts: BlogPost[];
 
-  if (user?.role === 'doctor') {
-    // Doctors see all their posts (including drafts) + published posts from others
-    posts = db.blogPosts.filter(p => p.doctorId === user.id || p.published);
-  } else {
-    // Everyone else sees only published posts
-    posts = db.blogPosts.filter(p => p.published);
-  }
+  const posts = await prisma.blogPost.findMany({
+    where: user?.role === 'doctor'
+      ? { OR: [{ doctorId: user.id }, { published: true }] }
+      : { published: true },
+    include: { comments: true },
+    orderBy: { publishedAt: 'desc' },
+  });
 
-  return NextResponse.json(posts.sort((a, b) => b.publishedAt.localeCompare(a.publishedAt)));
+  return NextResponse.json(posts);
 }
 
-// POST - create a new blog post (doctors only)
 export async function POST(request: NextRequest) {
   const user = getToken(request);
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
@@ -49,29 +46,26 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Título y contenido son requeridos' }, { status: 400 });
     }
 
-    const post: BlogPost = {
-      id: `blog-${uuidv4()}`,
-      doctorId: user.id,
-      doctorName: user.name,
-      title,
-      content,
-      excerpt: excerpt || content.substring(0, 150) + '...',
-      category: category || 'wellness',
-      tags: tags || [],
-      publishedAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      published: published !== false,
-      comments: [],
-    };
+    const post = await prisma.blogPost.create({
+      data: {
+        doctorId: user.id,
+        doctorName: user.name,
+        title,
+        content,
+        excerpt: excerpt || content.substring(0, 150) + '...',
+        category: category || 'wellness',
+        tags: tags || [],
+        published: published !== false,
+      },
+      include: { comments: true },
+    });
 
-    db.blogPosts.push(post);
     return NextResponse.json(post, { status: 201 });
   } catch {
     return NextResponse.json({ error: 'Error al crear publicación' }, { status: 500 });
   }
 }
 
-// PATCH - add a comment to a post (both doctors and patients)
 export async function PATCH(request: NextRequest) {
   const user = getToken(request);
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
@@ -83,20 +77,19 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: 'Datos incompletos' }, { status: 400 });
     }
 
-    const post = db.blogPosts.find(p => p.id === postId);
+    const post = await prisma.blogPost.findUnique({ where: { id: postId } });
     if (!post) return NextResponse.json({ error: 'Post no encontrado' }, { status: 404 });
 
-    const comment: BlogComment = {
-      id: `com-${uuidv4()}`,
-      postId,
-      userId: user.id,
-      userName: user.name,
-      userRole: user.role as 'patient' | 'doctor',
-      content,
-      createdAt: new Date().toISOString(),
-    };
+    const comment = await prisma.blogComment.create({
+      data: {
+        postId,
+        userId: user.id,
+        userName: user.name,
+        userRole: user.role,
+        content,
+      },
+    });
 
-    post.comments.push(comment);
     return NextResponse.json(comment, { status: 201 });
   } catch {
     return NextResponse.json({ error: 'Error al agregar comentario' }, { status: 500 });

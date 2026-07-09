@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { v4 as uuidv4 } from 'uuid';
 import { verifyToken } from '@/lib/auth';
-import db from '@/lib/db';
-import { Recommendation } from '@/types';
+import { prisma } from '@/lib/prisma';
 
 function getToken(request: NextRequest) {
   const auth = request.headers.get('authorization');
@@ -14,19 +12,25 @@ export async function GET(request: NextRequest) {
   const user = getToken(request);
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
 
-  let recommendations: Recommendation[];
-  if (user.role === 'doctor') {
-    recommendations = db.recommendations.filter(r => r.doctorId === user.id);
-  } else {
-    recommendations = db.recommendations.filter(r => r.patientId === user.id);
-  }
+  const recommendations = await prisma.recommendation.findMany({
+    where: user.role === 'doctor' ? { doctorId: user.id } : { patientId: user.id },
+    include: { doctor: { select: { name: true } } },
+  });
 
-  recommendations = recommendations.map(r => ({
-    ...r,
-    doctorName: db.doctors.find(d => d.id === r.doctorId)?.name || 'Doctor',
+  const result = recommendations.map(r => ({
+    id: r.id,
+    patientId: r.patientId,
+    doctorId: r.doctorId,
+    date: r.date,
+    title: r.title,
+    description: r.description,
+    steps: r.steps,
+    category: r.category,
+    priority: r.priority,
+    doctorName: r.doctor.name,
   }));
 
-  return NextResponse.json(recommendations);
+  return NextResponse.json(result);
 }
 
 export async function POST(request: NextRequest) {
@@ -41,23 +45,23 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Datos incompletos' }, { status: 400 });
     }
 
-    const recommendation: Recommendation = {
-      id: `rec-${uuidv4()}`,
-      patientId,
-      doctorId: user.id,
-      date: new Date().toISOString(),
-      title,
-      description,
-      steps: (steps || []).map((s: { description: string }, i: number) => ({
-        order: i + 1,
-        description: s.description,
-        completed: false,
-      })),
-      category: category || 'other',
-      priority: priority || 'medium',
-    };
+    const recommendation = await prisma.recommendation.create({
+      data: {
+        patientId,
+        doctorId: user.id,
+        date: new Date().toISOString(),
+        title,
+        description,
+        steps: (steps || []).map((s: { description: string }, i: number) => ({
+          order: i + 1,
+          description: s.description,
+          completed: false,
+        })),
+        category: category || 'other',
+        priority: priority || 'medium',
+      },
+    });
 
-    db.recommendations.push(recommendation);
     return NextResponse.json(recommendation, { status: 201 });
   } catch {
     return NextResponse.json({ error: 'Error al crear recomendación' }, { status: 500 });

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyPassword, generateToken, getPasswordStore } from '@/lib/auth';
-import db from '@/lib/db';
+import { verifyPassword, generateToken } from '@/lib/auth';
+import { prisma } from '@/lib/prisma';
 
 export async function POST(request: NextRequest) {
   try {
@@ -10,9 +10,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Email y contraseña son requeridos' }, { status: 400 });
     }
 
-    // Search in both patients and doctors
-    const patient = db.patients.find(p => p.email === email);
-    const doctor = db.doctors.find(d => d.email === email);
+    const patient = await prisma.patient.findUnique({ where: { email } });
+    const doctor = await prisma.doctor.findUnique({ where: { email } });
     const user = patient || doctor;
 
     if (!user) {
@@ -23,20 +22,21 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Tu cuenta aún no ha sido activada. Usa el enlace de invitación enviado por tu doctora.' }, { status: 403 });
     }
 
-    const storedHash = getPasswordStore().get(user.id);
-    if (!storedHash) {
+    const passwordHash = patient?.passwordHash || doctor?.passwordHash;
+    if (!passwordHash) {
       return NextResponse.json({ error: 'Credenciales inválidas' }, { status: 401 });
     }
 
-    const isValid = await verifyPassword(password, storedHash);
+    const isValid = await verifyPassword(password, passwordHash);
     if (!isValid) {
       return NextResponse.json({ error: 'Credenciales inválidas' }, { status: 401 });
     }
 
-    const token = generateToken(user);
+    const role = doctor ? 'doctor' : 'patient';
+    const token = generateToken({ id: user.id, email: user.email, role, name: user.name });
     return NextResponse.json({
       token,
-      user: { id: user.id, name: user.name, email: user.email, role: user.role },
+      user: { id: user.id, name: user.name, email: user.email, role },
     });
   } catch {
     return NextResponse.json({ error: 'Error al iniciar sesión' }, { status: 500 });

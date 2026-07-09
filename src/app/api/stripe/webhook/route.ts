@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getStripe } from '@/lib/stripe';
-import db from '@/lib/db';
-import { Payment } from '@/types';
-import { v4 as uuidv4 } from 'uuid';
+import { prisma } from '@/lib/prisma';
 
 export async function POST(request: NextRequest) {
   const body = await request.text();
@@ -23,23 +21,25 @@ export async function POST(request: NextRequest) {
       const patientId = session.metadata?.patientId;
 
       if (appointmentId && patientId) {
-        const appointment = db.appointments.find(a => a.id === appointmentId);
+        const appointment = await prisma.appointment.findUnique({ where: { id: appointmentId } });
         if (appointment) {
-          appointment.paymentStatus = 'paid';
-          appointment.status = 'confirmed';
-
-          const payment: Payment = {
-            id: `pay-${uuidv4()}`,
-            appointmentId,
-            patientId,
-            amount: appointment.amount,
-            method: 'card',
-            status: 'completed',
-            date: new Date().toISOString(),
-            reference: `STRIPE-${session.id}`,
-          };
-
-          db.payments.push(payment);
+          await prisma.$transaction([
+            prisma.appointment.update({
+              where: { id: appointmentId },
+              data: { paymentStatus: 'paid', status: 'confirmed' },
+            }),
+            prisma.payment.create({
+              data: {
+                appointmentId,
+                patientId,
+                amount: appointment.amount,
+                method: 'card',
+                status: 'completed',
+                date: new Date().toISOString(),
+                reference: `STRIPE-${session.id}`,
+              },
+            }),
+          ]);
         }
       }
     }
