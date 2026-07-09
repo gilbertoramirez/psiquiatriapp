@@ -25,14 +25,28 @@ export async function GET(request: NextRequest) {
     }
 
     if (type === 'list') {
-      const appointments = await prisma.appointment.findMany({
-        where: { doctorId: user.id },
-        select: { patientId: true },
-        distinct: ['patientId'],
-      });
-      const patientIds = appointments.map(a => a.patientId);
+      const [appointments, doctorInvitations] = await Promise.all([
+        prisma.appointment.findMany({
+          where: { doctorId: user.id },
+          select: { patientId: true },
+          distinct: ['patientId'],
+        }),
+        prisma.invitation.findMany({
+          where: { doctorId: user.id },
+          select: { patientId: true },
+        }),
+      ]);
+      const patientIds = [...new Set([
+        ...appointments.map(a => a.patientId),
+        ...doctorInvitations.map(i => i.patientId),
+      ])];
       const patients = await prisma.patient.findMany({
         where: { id: { in: patientIds } },
+        select: {
+          id: true, email: true, name: true, phone: true,
+          dateOfBirth: true, emergencyContact: true, emergencyPhone: true,
+          medicalHistory: true, accountStatus: true, createdAt: true,
+        },
       });
       return NextResponse.json(patients);
     }
