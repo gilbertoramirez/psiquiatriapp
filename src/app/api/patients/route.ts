@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { v4 as uuidv4 } from 'uuid';
 import { verifyToken } from '@/lib/auth';
-import db from '@/lib/db';
-import { PatientLog } from '@/types';
+import { prisma } from '@/lib/prisma';
 
 function getToken(request: NextRequest) {
   const auth = request.headers.get('authorization');
@@ -10,7 +8,6 @@ function getToken(request: NextRequest) {
   return verifyToken(auth.substring(7));
 }
 
-// GET patient list (for doctors) or patient logs
 export async function GET(request: NextRequest) {
   const user = getToken(request);
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
@@ -21,41 +18,54 @@ export async function GET(request: NextRequest) {
 
   if (user.role === 'doctor') {
     if (type === 'logs' && patientId) {
-      const logs = db.patientLogs.filter(l => l.patientId === patientId && l.doctorId === user.id);
+      const logs = await prisma.patientLog.findMany({
+        where: { patientId, doctorId: user.id },
+      });
       return NextResponse.json(logs);
     }
 
     if (type === 'list') {
-      // Get unique patients that have appointments with this doctor
-      const patientIds = [...new Set(db.appointments.filter(a => a.doctorId === user.id).map(a => a.patientId))];
-      const patients = db.patients.filter(p => patientIds.includes(p.id));
+      const appointments = await prisma.appointment.findMany({
+        where: { doctorId: user.id },
+        select: { patientId: true },
+        distinct: ['patientId'],
+      });
+      const patientIds = appointments.map(a => a.patientId);
+      const patients = await prisma.patient.findMany({
+        where: { id: { in: patientIds } },
+      });
       return NextResponse.json(patients);
     }
 
-    // Dashboard stats
     const today = new Date().toISOString().split('T')[0];
     const weekEnd = new Date();
     weekEnd.setDate(weekEnd.getDate() + 7);
     const weekEndStr = weekEnd.toISOString().split('T')[0];
 
-    const myAppointments = db.appointments.filter(a => a.doctorId === user.id);
-    const todayAppts = myAppointments.filter(a => a.date === today);
-    const weekAppts = myAppointments.filter(a => a.date >= today && a.date <= weekEndStr);
-    const patientIds = [...new Set(myAppointments.map(a => a.patientId))];
+    const [todayCount, weekCount, pendingCount, completedCount, patientCount] = await Promise.all([
+      prisma.appointment.count({ where: { doctorId: user.id, date: today } }),
+      prisma.appointment.count({ where: { doctorId: user.id, date: { gte: today, lte: weekEndStr } } }),
+      prisma.appointment.count({ where: { doctorId: user.id, paymentStatus: 'pending' } }),
+      prisma.appointment.count({ where: { doctorId: user.id, date: today, status: 'completed' } }),
+      prisma.appointment.findMany({
+        where: { doctorId: user.id },
+        select: { patientId: true },
+        distinct: ['patientId'],
+      }),
+    ]);
 
     return NextResponse.json({
-      totalPatients: patientIds.length,
-      todayAppointments: todayAppts.length,
-      weekAppointments: weekAppts.length,
-      pendingPayments: myAppointments.filter(a => a.paymentStatus === 'pending').length,
-      completedToday: todayAppts.filter(a => a.status === 'completed').length,
+      totalPatients: patientCount.length,
+      todayAppointments: todayCount,
+      weekAppointments: weekCount,
+      pendingPayments: pendingCount,
+      completedToday: completedCount,
     });
   }
 
   return NextResponse.json({ error: 'No autorizado' }, { status: 403 });
 }
 
-// POST - create patient log entry
 export async function POST(request: NextRequest) {
   const user = getToken(request);
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
@@ -64,20 +74,20 @@ export async function POST(request: NextRequest) {
   try {
     const { patientId, mood, symptoms, notes, treatment, progress, appointmentId } = await request.json();
 
-    const log: PatientLog = {
-      id: `log-${uuidv4()}`,
-      patientId,
-      doctorId: user.id,
-      date: new Date().toISOString(),
-      appointmentId,
-      mood: mood || 5,
-      symptoms: symptoms || [],
-      notes: notes || '',
-      treatment: treatment || '',
-      progress: progress || 'stable',
-    };
+    const log = await prisma.patientLog.create({
+      data: {
+        patientId,
+        doctorId: user.id,
+        date: new Date().toISOString(),
+        appointmentId,
+        mood: mood || 5,
+        symptoms: symptoms || [],
+        notes: notes || '',
+        treatment: treatment || '',
+        progress: progress || 'stable',
+      },
+    });
 
-    db.patientLogs.push(log);
     return NextResponse.json(log, { status: 201 });
   } catch {
     return NextResponse.json({ error: 'Error al crear registro' }, { status: 500 });

@@ -1,6 +1,5 @@
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
-import { User } from '@/types';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'psiquiatriapp-secret-key-change-in-production';
 
@@ -12,7 +11,7 @@ export async function verifyPassword(password: string, hash: string): Promise<bo
   return bcrypt.compare(password, hash);
 }
 
-export function generateToken(user: User): string {
+export function generateToken(user: { id: string; email: string; role: string; name: string }): string {
   return jwt.sign(
     { id: user.id, email: user.email, role: user.role, name: user.name },
     JWT_SECRET,
@@ -26,14 +25,4 @@ export function verifyToken(token: string): { id: string; email: string; role: s
   } catch {
     return null;
   }
-}
-
-// Password storage (in production use a real DB)
-const passwords: Map<string, string> = new Map();
-
-// Pre-set doctor password (Dra. Claudia Anahí Hernández Carrillo)
-passwords.set('doc-1', bcrypt.hashSync('doctor123', 12));
-
-export function getPasswordStore() {
-  return passwords;
 }

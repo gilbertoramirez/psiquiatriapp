@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { v4 as uuidv4 } from 'uuid';
 import { verifyToken } from '@/lib/auth';
-import db from '@/lib/db';
-import { Prescription } from '@/types';
+import { prisma } from '@/lib/prisma';
 
 function getToken(request: NextRequest) {
   const auth = request.headers.get('authorization');
@@ -14,19 +12,24 @@ export async function GET(request: NextRequest) {
   const user = getToken(request);
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
 
-  let prescriptions: Prescription[];
-  if (user.role === 'doctor') {
-    prescriptions = db.prescriptions.filter(p => p.doctorId === user.id);
-  } else {
-    prescriptions = db.prescriptions.filter(p => p.patientId === user.id);
-  }
+  const prescriptions = await prisma.prescription.findMany({
+    where: user.role === 'doctor' ? { doctorId: user.id } : { patientId: user.id },
+    include: { doctor: { select: { name: true } } },
+  });
 
-  prescriptions = prescriptions.map(p => ({
-    ...p,
-    doctorName: db.doctors.find(d => d.id === p.doctorId)?.name || 'Doctor',
+  const result = prescriptions.map(p => ({
+    id: p.id,
+    patientId: p.patientId,
+    doctorId: p.doctorId,
+    appointmentId: p.appointmentId,
+    date: p.date,
+    medications: p.medications,
+    diagnosis: p.diagnosis,
+    notes: p.notes,
+    doctorName: p.doctor.name,
   }));
 
-  return NextResponse.json(prescriptions);
+  return NextResponse.json(result);
 }
 
 export async function POST(request: NextRequest) {
@@ -41,18 +44,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Datos incompletos' }, { status: 400 });
     }
 
-    const prescription: Prescription = {
-      id: `rx-${uuidv4()}`,
-      patientId,
-      doctorId: user.id,
-      appointmentId,
-      date: new Date().toISOString(),
-      medications,
-      diagnosis,
-      notes,
-    };
+    const prescription = await prisma.prescription.create({
+      data: {
+        patientId,
+        doctorId: user.id,
+        appointmentId,
+        date: new Date().toISOString(),
+        medications,
+        diagnosis,
+        notes,
+      },
+    });
 
-    db.prescriptions.push(prescription);
     return NextResponse.json(prescription, { status: 201 });
   } catch {
     return NextResponse.json({ error: 'Error al crear receta' }, { status: 500 });

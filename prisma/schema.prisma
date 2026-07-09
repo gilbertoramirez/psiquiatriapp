@@ -1,0 +1,179 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Doctor {
+  id              String   @id @default(cuid())
+  email           String   @unique
+  name            String
+  phone           String?
+  specialty       String
+  licenseNumber   String
+  consultationFee Int
+  address         String?
+  passwordHash    String
+  availableHours  Json
+  modalityByDay   Json?
+  createdAt       DateTime @default(now())
+
+  appointments    Appointment[]
+  prescriptions   Prescription[]
+  recommendations Recommendation[]
+  patientLogs     PatientLog[]
+  blogPosts       BlogPost[]
+  invitations     Invitation[]
+}
+
+model Patient {
+  id               String   @id @default(cuid())
+  email            String   @unique
+  name             String
+  phone            String?
+  dateOfBirth      String?
+  emergencyContact String?
+  emergencyPhone   String?
+  medicalHistory   String?
+  accountStatus    String   @default("active")
+  passwordHash     String?
+  createdAt        DateTime @default(now())
+
+  appointments    Appointment[]
+  prescriptions   Prescription[]
+  recommendations Recommendation[]
+  patientLogs     PatientLog[]
+  payments        Payment[]
+  invitations     Invitation[]
+}
+
+model Appointment {
+  id            String   @id @default(cuid())
+  patientId     String
+  doctorId      String
+  date          String
+  startTime     String
+  endTime       String
+  status        String   @default("scheduled")
+  type          String   @default("followup")
+  notes         String?
+  paymentStatus String   @default("pending")
+  amount        Int
+  createdAt     DateTime @default(now())
+
+  patient  Patient  @relation(fields: [patientId], references: [id])
+  doctor   Doctor   @relation(fields: [doctorId], references: [id])
+  payments Payment[]
+
+  @@index([doctorId, date])
+  @@index([patientId])
+}
+
+model Prescription {
+  id            String   @id @default(cuid())
+  patientId     String
+  doctorId      String
+  appointmentId String?
+  date          String
+  medications   Json
+  diagnosis     String
+  notes         String?
+  createdAt     DateTime @default(now())
+
+  patient Patient @relation(fields: [patientId], references: [id])
+  doctor  Doctor  @relation(fields: [doctorId], references: [id])
+}
+
+model Recommendation {
+  id          String   @id @default(cuid())
+  patientId   String
+  doctorId    String
+  date        String
+  title       String
+  description String
+  steps       Json
+  category    String   @default("other")
+  priority    String   @default("medium")
+  createdAt   DateTime @default(now())
+
+  patient Patient @relation(fields: [patientId], references: [id])
+  doctor  Doctor  @relation(fields: [doctorId], references: [id])
+}
+
+model PatientLog {
+  id            String   @id @default(cuid())
+  patientId     String
+  doctorId      String
+  date          String
+  appointmentId String?
+  mood          Int      @default(5)
+  symptoms      Json
+  notes         String
+  treatment     String
+  progress      String   @default("stable")
+  createdAt     DateTime @default(now())
+
+  patient Patient @relation(fields: [patientId], references: [id])
+  doctor  Doctor  @relation(fields: [doctorId], references: [id])
+}
+
+model Payment {
+  id            String   @id @default(cuid())
+  appointmentId String
+  patientId     String
+  amount        Int
+  method        String
+  status        String   @default("pending")
+  date          String
+  reference     String?
+  createdAt     DateTime @default(now())
+
+  appointment Appointment @relation(fields: [appointmentId], references: [id])
+  patient     Patient     @relation(fields: [patientId], references: [id])
+}
+
+model BlogPost {
+  id          String   @id @default(cuid())
+  doctorId    String
+  doctorName  String
+  title       String
+  content     String
+  excerpt     String
+  category    String   @default("wellness")
+  tags        Json
+  publishedAt DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  published   Boolean  @default(true)
+
+  doctor   Doctor        @relation(fields: [doctorId], references: [id])
+  comments BlogComment[]
+}
+
+model BlogComment {
+  id        String   @id @default(cuid())
+  postId    String
+  userId    String
+  userName  String
+  userRole  String
+  content   String
+  createdAt DateTime @default(now())
+
+  post BlogPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+}
+
+model Invitation {
+  id         String    @id @default(cuid())
+  token      String    @unique
+  patientId  String
+  doctorId   String
+  email      String
+  status     String    @default("pending")
+  createdAt  DateTime  @default(now())
+  acceptedAt DateTime?
+
+  patient Patient @relation(fields: [patientId], references: [id])
+  doctor  Doctor  @relation(fields: [doctorId], references: [id])
+}
