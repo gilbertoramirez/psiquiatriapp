@@ -19,6 +19,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Credenciales inválidas' }, { status: 401 });
     }
 
+    if (patient && patient.accountStatus === 'pending') {
+      return NextResponse.json({ error: 'Tu cuenta aún no ha sido activada. Usa el enlace de invitación enviado por tu doctora.' }, { status: 403 });
+    }
+
     const storedHash = getPasswordStore().get(user.id);
     if (!storedHash) {
       return NextResponse.json({ error: 'Credenciales inválidas' }, { status: 401 });

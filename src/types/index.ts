@@ -15,6 +15,18 @@ export interface Patient extends User {
   emergencyContact?: string;
   emergencyPhone?: string;
   medicalHistory?: string;
+  accountStatus?: 'pending' | 'active';
+}
+
+export interface Invitation {
+  id: string;
+  token: string;
+  patientId: string;
+  doctorId: string;
+  email: string;
+  status: 'pending' | 'accepted';
+  createdAt: string;
+  acceptedAt?: string;
 }
 
 export interface Doctor extends User {
