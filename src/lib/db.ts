@@ -1,7 +1,7 @@
 // In-memory database for demo purposes.
 // Replace with PostgreSQL/MySQL/MongoDB in production.
 
-import { Patient, Doctor, Appointment, Prescription, Recommendation, PatientLog, Payment, BlogPost } from '@/types';
+import { Patient, Doctor, Appointment, Prescription, Recommendation, PatientLog, Payment, BlogPost, Invitation } from '@/types';
 
 interface Database {
   patients: Patient[];
@@ -12,6 +12,7 @@ interface Database {
   patientLogs: PatientLog[];
   payments: Payment[];
   blogPosts: BlogPost[];
+  invitations: Invitation[];
 }
 
 const db: Database = {
@@ -46,6 +47,7 @@ const db: Database = {
   patientLogs: [],
   payments: [],
   blogPosts: [],
+  invitations: [],
 };
 
 export default db;

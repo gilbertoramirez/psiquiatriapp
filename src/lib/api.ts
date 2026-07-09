@@ -22,7 +22,6 @@ async function fetchAPI(endpoint: string, options: RequestInit = {}) {
 
 // Auth
 export const auth = {
-  register: (data: Record<string, string>) => fetchAPI('/auth/register', { method: 'POST', body: JSON.stringify(data) }),
   login: (data: { email: string; password: string }) => fetchAPI('/auth/login', { method: 'POST', body: JSON.stringify(data) }),
   getUser: () => {
     if (typeof window === 'undefined') return null;
@@ -72,6 +71,16 @@ export const blog = {
   get: (id: string) => fetchAPI(`/blog?id=${id}`),
   create: (data: Record<string, unknown>) => fetchAPI('/blog', { method: 'POST', body: JSON.stringify(data) }),
   comment: (postId: string, content: string) => fetchAPI('/blog', { method: 'PATCH', body: JSON.stringify({ postId, content }) }),
+};
+
+// Invitations (doctor)
+export const invitations = {
+  create: (data: { name: string; email: string; phone?: string }) =>
+    fetchAPI('/invitations', { method: 'POST', body: JSON.stringify(data) }),
+  list: () => fetchAPI('/invitations'),
+  verify: (token: string) => fetchAPI(`/invitations/accept?token=${token}`),
+  accept: (data: { token: string; password: string }) =>
+    fetchAPI('/invitations/accept', { method: 'POST', body: JSON.stringify(data) }),
 };
 
 // Patients (doctor)
