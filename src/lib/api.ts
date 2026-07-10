@@ -39,6 +39,8 @@ export const auth = {
 export const appointments = {
   list: () => fetchAPI('/appointments'),
   create: (data: Record<string, string>) => fetchAPI('/appointments', { method: 'POST', body: JSON.stringify(data) }),
+  confirmPayment: (appointmentId: string, method: string) =>
+    fetchAPI('/appointments/confirm-payment', { method: 'POST', body: JSON.stringify({ appointmentId, method }) }),
 };
 
 // Prescriptions

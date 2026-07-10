@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getStripe } from '@/lib/stripe';
 import { verifyToken } from '@/lib/auth';
-import { prisma } from '@/lib/prisma';
+import { confirmPaymentAndCreateEvent } from '@/lib/confirm-payment';
 
 function getToken(request: NextRequest) {
   const auth = request.headers.get('authorization');
@@ -23,26 +23,13 @@ export async function POST(request: NextRequest) {
     const session = await getStripe().checkout.sessions.retrieve(sessionId);
 
     if (session.payment_status === 'paid') {
-      const appointment = await prisma.appointment.findUnique({ where: { id: appointmentId } });
-      if (appointment && appointment.paymentStatus !== 'paid') {
-        await prisma.$transaction([
-          prisma.appointment.update({
-            where: { id: appointmentId },
-            data: { paymentStatus: 'paid', status: 'confirmed' },
-          }),
-          prisma.payment.create({
-            data: {
-              appointmentId,
-              patientId: user.id,
-              amount: appointment.amount,
-              method: 'card',
-              status: 'completed',
-              date: new Date().toISOString(),
-              reference: `STRIPE-${session.id}`,
-            },
-          }),
-        ]);
-      }
+      await confirmPaymentAndCreateEvent({
+        appointmentId,
+        patientId: user.id,
+        method: 'card',
+        reference: `STRIPE-${session.id}`,
+      });
+
       return NextResponse.json({ success: true, status: 'paid' });
     }
 
