@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getStripe } from '@/lib/stripe';
-import { prisma } from '@/lib/prisma';
+import { confirmPaymentAndCreateEvent } from '@/lib/confirm-payment';
 
 export async function POST(request: NextRequest) {
   const body = await request.text();
@@ -21,26 +21,12 @@ export async function POST(request: NextRequest) {
       const patientId = session.metadata?.patientId;
 
       if (appointmentId && patientId) {
-        const appointment = await prisma.appointment.findUnique({ where: { id: appointmentId } });
-        if (appointment) {
-          await prisma.$transaction([
-            prisma.appointment.update({
-              where: { id: appointmentId },
-              data: { paymentStatus: 'paid', status: 'confirmed' },
-            }),
-            prisma.payment.create({
-              data: {
-                appointmentId,
-                patientId,
-                amount: appointment.amount,
-                method: 'card',
-                status: 'completed',
-                date: new Date().toISOString(),
-                reference: `STRIPE-${session.id}`,
-              },
-            }),
-          ]);
-        }
+        await confirmPaymentAndCreateEvent({
+          appointmentId,
+          patientId,
+          method: 'card',
+          reference: `STRIPE-${session.id}`,
+        });
       }
     }
 

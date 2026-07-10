@@ -69,6 +69,7 @@ export default function CitasPage() {
   const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([]);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [appointmentType, setAppointmentType] = useState<string>('followup');
+  const [appointmentModality, setAppointmentModality] = useState<string>('in-person');
   const [showBooking, setShowBooking] = useState(false);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
@@ -93,6 +94,9 @@ export default function CitasPage() {
       const slots = generateTimeSlots(selectedDate, myAppointments, doctor.availableHours);
       setTimeSlots(slots);
       setSelectedTime(null);
+      const dayMod = doctor.modalityByDay?.[dayNames[selectedDate.getDay()]];
+      if (dayMod === 'online') setAppointmentModality('online');
+      else if (dayMod === 'in-person' || dayMod === 'presencial') setAppointmentModality('in-person');
     }
   }, [selectedDate, myAppointments, doctor]);
 
@@ -106,6 +110,7 @@ export default function CitasPage() {
         date: selectedDate.toISOString().split('T')[0],
         startTime: selectedTime,
         type: appointmentType,
+        modality: appointmentModality,
       });
       setMessage({ type: 'success', text: '¡Cita agendada exitosamente! Procede al pago para confirmar.' });
       setSelectedDate(null);
@@ -299,14 +304,27 @@ export default function CitasPage() {
                       </select>
                     </div>
 
+                    <div className="mb-4">
+                      <label className="label-field">Modalidad</label>
+                      {(() => {
+                        const dayMod = doctor?.modalityByDay?.[dayNames[selectedDate.getDay()]];
+                        if (dayMod === 'online') return <div className="input-field bg-gray-50 text-gray-600">En línea (Google Meet)</div>;
+                        if (dayMod === 'in-person' || dayMod === 'presencial') return <div className="input-field bg-gray-50 text-gray-600">Presencial</div>;
+                        return (
+                          <select value={appointmentModality} onChange={e => setAppointmentModality(e.target.value)} className="input-field">
+                            <option value="in-person">Presencial</option>
+                            <option value="online">En línea (Google Meet)</option>
+                          </select>
+                        );
+                      })()}
+                    </div>
+
                     <div className="bg-salmon-50 rounded-lg p-4 mb-4">
                       <div className="flex justify-between items-center">
                         <div>
                           <p className="font-medium text-gray-900">{doctor?.name}</p>
                           <p className="text-sm text-salmon-700">{selectedTime} hrs - {DAY_NAMES[selectedDate.getDay()]} {selectedDate.getDate()}/{selectedDate.getMonth() + 1}/{selectedDate.getFullYear()}</p>
-                          {doctor?.modalityByDay?.[dayNames[selectedDate.getDay()]] && (
-                            <p className="text-xs text-gray-500 mt-1">{MODALITY_LABELS[doctor.modalityByDay[dayNames[selectedDate.getDay()]]] || doctor.modalityByDay[dayNames[selectedDate.getDay()]]}</p>
-                          )}
+                          <p className="text-xs text-gray-500 mt-1">{appointmentModality === 'online' ? 'En línea (Google Meet)' : 'Presencial'}</p>
                         </div>
                         <p className="text-xl font-bold text-salmon-700">${doctor?.consultationFee.toLocaleString()}</p>
                       </div>
@@ -346,16 +364,27 @@ export default function CitasPage() {
                   <div>
                     <p className="font-medium text-gray-900">{apt.doctorName}</p>
                     <p className="text-sm text-gray-500">{apt.date} a las {apt.startTime} hrs</p>
-                    <p className="text-xs text-gray-400 capitalize">{apt.type === 'initial' ? 'Primera consulta' : apt.type === 'followup' ? 'Seguimiento' : 'Urgencia'}</p>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <p className="text-xs text-gray-400">{apt.type === 'initial' ? 'Primera consulta' : apt.type === 'followup' ? 'Seguimiento' : 'Urgencia'}</p>
+                      <span className="text-xs text-gray-300">|</span>
+                      <p className="text-xs text-gray-400">{apt.modality === 'online' ? 'En línea' : 'Presencial'}</p>
+                    </div>
                   </div>
                 </div>
-                <div className="text-right">
+                <div className="text-right flex flex-col items-end gap-1">
                   <span className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${statusColors[apt.status]}`}>
                     {statusLabels[apt.status]}
                   </span>
-                  <p className={`text-xs mt-1 ${apt.paymentStatus === 'paid' ? 'text-green-600' : 'text-orange-600'}`}>
+                  <p className={`text-xs ${apt.paymentStatus === 'paid' ? 'text-green-600' : 'text-orange-600'}`}>
                     {apt.paymentStatus === 'paid' ? 'Pagada' : 'Pago pendiente'}
                   </p>
+                  {apt.meetLink && apt.paymentStatus === 'paid' && (
+                    <a href={apt.meetLink} target="_blank" rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 px-3 py-1 bg-blue-500 text-white text-xs font-medium rounded-full hover:bg-blue-600 transition-colors">
+                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
+                      Google Meet
+                    </a>
+                  )}
                 </div>
               </div>
             ))
