@@ -86,7 +86,7 @@ export async function POST(request: NextRequest) {
   if (user.role !== 'doctor') return NextResponse.json({ error: 'Solo doctores' }, { status: 403 });
 
   try {
-    const { patientId, mood, symptoms, notes, treatment, progress, appointmentId } = await request.json();
+    const { patientId, mood, symptoms, notes, treatment, progress, appointmentId, soapNotes } = await request.json();
 
     const log = await prisma.patientLog.create({
       data: {
@@ -99,6 +99,7 @@ export async function POST(request: NextRequest) {
         notes: notes || '',
         treatment: treatment || '',
         progress: progress || 'stable',
+        soapNotes: soapNotes || undefined,
       },
     });
 

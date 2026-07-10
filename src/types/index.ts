@@ -111,6 +111,20 @@ export interface PatientLog {
   notes: string;
   treatment: string;
   progress: 'improving' | 'stable' | 'declining';
+  soapNotes?: { subjective?: string; objective?: string; assessment?: string; plan?: string };
+}
+
+export interface PatientCheckIn {
+  id: string;
+  patientId: string;
+  date: string;
+  mood: number;
+  sleep: number;
+  sleepQuality: number;
+  anxiety: number;
+  energy: number;
+  sideEffects?: string;
+  notes?: string;
 }
 
 export interface Payment {
