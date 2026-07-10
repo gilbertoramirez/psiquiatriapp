@@ -32,6 +32,8 @@
     "bcryptjs": "^3.0.3",
     "googleapis": "^173.0.0",
     "jsonwebtoken": "^9.0.3",
+    "jspdf": "^4.2.1",
+    "jspdf-autotable": "^5.0.8",
     "next": "^14.2.35",
     "postcss": "^8.5.8",
     "prisma": "^7.8.0",

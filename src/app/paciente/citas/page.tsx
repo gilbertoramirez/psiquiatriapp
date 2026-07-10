@@ -385,6 +385,23 @@ export default function CitasPage() {
                       Google Meet
                     </a>
                   )}
+                  {apt.status === 'scheduled' && (() => {
+                    const aptDate = new Date(`${apt.date}T${apt.startTime}`);
+                    const hoursUntil = (aptDate.getTime() - Date.now()) / (1000 * 60 * 60);
+                    return hoursUntil > 24;
+                  })() && (
+                    <button
+                      onClick={async () => {
+                        if (!confirm('¿Estás seguro de que quieres cancelar esta cita?')) return;
+                        try {
+                          await appointmentsApi.cancel(apt.id, 'Cancelada por paciente');
+                          setMyAppointments(prev => prev.map(a => a.id === apt.id ? { ...a, status: 'cancelled' as const } : a));
+                        } catch { /* ignore */ }
+                      }}
+                      className="text-xs text-red-500 hover:text-red-700 font-medium">
+                      Cancelar cita
+                    </button>
+                  )}
                 </div>
               </div>
             ))

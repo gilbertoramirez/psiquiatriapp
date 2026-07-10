@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { createNotification } from '@/lib/create-notification';
 
 function getToken(request: NextRequest) {
   const auth = request.headers.get('authorization');
@@ -54,6 +55,14 @@ export async function POST(request: NextRequest) {
         diagnosis,
         notes,
       },
+    });
+
+    await createNotification({
+      userId: patientId,
+      userRole: 'patient',
+      type: 'prescription',
+      title: 'Nueva receta',
+      message: 'Tu doctora te ha creado una nueva receta médica.',
     });
 
     return NextResponse.json(prescription, { status: 201 });

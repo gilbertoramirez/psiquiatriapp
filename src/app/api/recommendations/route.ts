@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { createNotification } from '@/lib/create-notification';
 
 function getToken(request: NextRequest) {
   const auth = request.headers.get('authorization');
@@ -60,6 +61,14 @@ export async function POST(request: NextRequest) {
         category: category || 'other',
         priority: priority || 'medium',
       },
+    });
+
+    await createNotification({
+      userId: patientId,
+      userRole: 'patient',
+      type: 'recommendation',
+      title: 'Nueva recomendación',
+      message: `Tu doctora te envió una recomendación: ${title}`,
     });
 
     return NextResponse.json(recommendation, { status: 201 });

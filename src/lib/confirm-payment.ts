@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma';
 import { createCalendarEvent } from '@/lib/google-calendar';
+import { createNotification } from '@/lib/create-notification';
 
 interface ConfirmPaymentParams {
   appointmentId: string;
@@ -36,6 +37,14 @@ export async function confirmPaymentAndCreateEvent(params: ConfirmPaymentParams)
       },
     }),
   ]);
+
+  await createNotification({
+    userId: params.patientId,
+    userRole: 'patient',
+    type: 'payment',
+    title: 'Pago confirmado',
+    message: 'Tu pago ha sido confirmado y tu cita está lista.',
+  });
 
   if (appointment.modality === 'online' && !appointment.meetLink) {
     const { meetLink, eventId } = await createCalendarEvent({
