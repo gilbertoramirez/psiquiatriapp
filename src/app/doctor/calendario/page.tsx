@@ -7,10 +7,11 @@ import { Appointment } from '@/types';
 const MONTH_NAMES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
 const DAY_NAMES = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 
-const DOCTOR_HOURS: Record<string, { start: string; end: string }[]> = {
-  thursday: [{ start: '16:00', end: '20:00' }],
-  friday: [{ start: '16:00', end: '20:00' }],
-  saturday: [{ start: '09:00', end: '14:00' }],
+const MODALITY_LABELS: Record<string, string> = {
+  both: 'Presencial y en línea',
+  online: 'En línea',
+  'in-person': 'Presencial',
+  presencial: 'Presencial',
 };
 
 const dayNames: Record<number, string> = {
@@ -24,10 +25,17 @@ interface PatientOption {
   email: string;
 }
 
-function generateTimeSlots(date: Date, existingAppointments: Appointment[]): { time: string; available: boolean }[] {
+interface DoctorInfo {
+  id: string;
+  name: string;
+  availableHours: Record<string, { start: string; end: string }[]>;
+  modalityByDay: Record<string, string> | null;
+}
+
+function generateTimeSlots(date: Date, existingAppointments: Appointment[], doctorHours: Record<string, { start: string; end: string }[]>): { time: string; available: boolean }[] {
   const dayOfWeek = date.getDay();
   const dn = dayNames[dayOfWeek];
-  const slots = DOCTOR_HOURS[dn];
+  const slots = doctorHours[dn];
   if (!slots) return [];
 
   const dateStr = date.toISOString().split('T')[0];
@@ -53,6 +61,7 @@ function generateTimeSlots(date: Date, existingAppointments: Appointment[]): { t
 export default function CalendarioPage() {
   const [allAppointments, setAllAppointments] = useState<Appointment[]>([]);
   const [patientsList, setPatientsList] = useState<PatientOption[]>([]);
+  const [doctor, setDoctor] = useState<DoctorInfo | null>(null);
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [view, setView] = useState<'month' | 'week'>('month');
@@ -62,6 +71,7 @@ export default function CalendarioPage() {
   const [newApptTime, setNewApptTime] = useState<string | null>(null);
   const [newApptPatient, setNewApptPatient] = useState('');
   const [newApptType, setNewApptType] = useState('followup');
+  const [newApptModality, setNewApptModality] = useState('in-person');
   const [newApptTimeSlots, setNewApptTimeSlots] = useState<{ time: string; available: boolean }[]>([]);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
@@ -80,14 +90,24 @@ export default function CalendarioPage() {
     } catch { /* ignore */ }
   }, []);
 
-  useEffect(() => { loadAppointments(); loadPatients(); }, [loadAppointments, loadPatients]);
+  useEffect(() => {
+    loadAppointments();
+    loadPatients();
+    fetch('/api/doctors')
+      .then(r => r.json())
+      .then((docs: DoctorInfo[]) => { if (docs.length > 0) setDoctor(docs[0]); })
+      .catch(() => {});
+  }, [loadAppointments, loadPatients]);
 
   useEffect(() => {
-    if (newApptDate) {
-      setNewApptTimeSlots(generateTimeSlots(newApptDate, allAppointments));
+    if (newApptDate && doctor) {
+      setNewApptTimeSlots(generateTimeSlots(newApptDate, allAppointments, doctor.availableHours));
       setNewApptTime(null);
+      const dayModality = doctor.modalityByDay?.[dayNames[newApptDate.getDay()]];
+      if (dayModality === 'online') setNewApptModality('online');
+      else if (dayModality === 'in-person' || dayModality === 'presencial') setNewApptModality('in-person');
     }
-  }, [newApptDate, allAppointments]);
+  }, [newApptDate, allAppointments, doctor]);
 
   const handleCreateAppointment = async () => {
     if (!newApptDate || !newApptTime || !newApptPatient) return;
@@ -99,6 +119,7 @@ export default function CalendarioPage() {
         date: newApptDate.toISOString().split('T')[0],
         startTime: newApptTime,
         type: newApptType,
+        modality: newApptModality,
       });
       setMessage({ type: 'success', text: 'Cita creada exitosamente' });
       setShowNewAppt(false);
@@ -154,7 +175,6 @@ export default function CalendarioPage() {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  const newApptMonth = newApptDate ? new Date(newApptDate.getFullYear(), newApptDate.getMonth(), 1) : currentMonth;
   const [newApptCalMonth, setNewApptCalMonth] = useState(new Date());
   const nYear = newApptCalMonth.getFullYear();
   const nMonth = newApptCalMonth.getMonth();
@@ -165,10 +185,11 @@ export default function CalendarioPage() {
   for (let d = 1; d <= nDaysInMonth; d++) nCalendarDays.push(d);
 
   const isAvailableDay = (day: number) => {
+    if (!doctor) return false;
     const date = new Date(nYear, nMonth, day);
     if (date < today) return false;
     const dn = dayNames[date.getDay()];
-    return !!DOCTOR_HOURS[dn];
+    return !!doctor.availableHours[dn];
   };
 
   return (
@@ -288,12 +309,34 @@ export default function CalendarioPage() {
                   </select>
                 </div>
 
+                <div className="mb-4">
+                  <label className="label-field">Modalidad</label>
+                  {(() => {
+                    const dayModality = doctor?.modalityByDay?.[dayNames[newApptDate.getDay()]];
+                    if (dayModality === 'online') {
+                      return <div className="input-field bg-gray-50 text-gray-600">En línea (Google Meet)</div>;
+                    }
+                    if (dayModality === 'in-person' || dayModality === 'presencial') {
+                      return <div className="input-field bg-gray-50 text-gray-600">Presencial</div>;
+                    }
+                    return (
+                      <select value={newApptModality} onChange={e => setNewApptModality(e.target.value)} className="input-field">
+                        <option value="in-person">Presencial</option>
+                        <option value="online">En línea (Google Meet)</option>
+                      </select>
+                    );
+                  })()}
+                </div>
+
                 {newApptPatient && newApptTime && (
                   <div className="bg-salmon-50 rounded-lg p-4 mb-4">
                     <p className="font-medium text-gray-900">
                       {patientsList.find(p => p.id === newApptPatient)?.name}
                     </p>
                     <p className="text-sm text-salmon-700">{newApptTime} hrs - {DAY_NAMES[newApptDate.getDay()]} {newApptDate.getDate()}/{newApptDate.getMonth() + 1}/{newApptDate.getFullYear()}</p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      {newApptModality === 'online' ? 'En línea (Google Meet)' : 'Presencial'}
+                    </p>
                   </div>
                 )}
 
@@ -383,12 +426,23 @@ export default function CalendarioPage() {
                           <span className={`w-2 h-2 rounded-full ${statusColors[apt.status]}`}></span>
                         </div>
                         <p className="text-xs text-gray-500">{apt.startTime} - {apt.endTime}</p>
-                        <p className="text-xs text-gray-400 capitalize mt-1">
-                          {apt.type === 'initial' ? 'Primera consulta' : apt.type === 'followup' ? 'Seguimiento' : 'Urgencia'}
-                        </p>
+                        <div className="flex items-center gap-2 mt-1">
+                          <p className="text-xs text-gray-400 capitalize">
+                            {apt.type === 'initial' ? 'Primera consulta' : apt.type === 'followup' ? 'Seguimiento' : 'Urgencia'}
+                          </p>
+                          <span className="text-xs text-gray-300">|</span>
+                          <p className="text-xs text-gray-400">{apt.modality === 'online' ? 'En línea' : 'Presencial'}</p>
+                        </div>
                         <p className={`text-xs mt-1 ${apt.paymentStatus === 'paid' ? 'text-green-600' : 'text-orange-500'}`}>
                           {apt.paymentStatus === 'paid' ? 'Pagada' : 'Pago pendiente'}
                         </p>
+                        {apt.meetLink && (
+                          <a href={apt.meetLink} target="_blank" rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 mt-2 px-2.5 py-1 bg-blue-500 text-white text-xs font-medium rounded-full hover:bg-blue-600 transition-colors">
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
+                            Google Meet
+                          </a>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -433,7 +487,7 @@ export default function CalendarioPage() {
                       {hourAppts.map(a => (
                         <div key={a.id} className={`text-[10px] p-1 rounded ${a.status === 'confirmed' ? 'bg-green-100 text-green-800' : a.status === 'completed' ? 'bg-blue-100 text-blue-800' : 'bg-yellow-100 text-yellow-800'}`}>
                           <p className="font-medium truncate">{a.patientName}</p>
-                          <p>{a.startTime}</p>
+                          <p>{a.startTime} {a.modality === 'online' ? '(Meet)' : ''}</p>
                         </div>
                       ))}
                     </div>

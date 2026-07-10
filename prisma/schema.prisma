@@ -51,18 +51,21 @@ model Patient {
 }
 
 model Appointment {
-  id            String   @id @default(cuid())
-  patientId     String
-  doctorId      String
-  date          String
-  startTime     String
-  endTime       String
-  status        String   @default("scheduled")
-  type          String   @default("followup")
-  notes         String?
-  paymentStatus String   @default("pending")
-  amount        Int
-  createdAt     DateTime @default(now())
+  id              String   @id @default(cuid())
+  patientId       String
+  doctorId        String
+  date            String
+  startTime       String
+  endTime         String
+  status          String   @default("scheduled")
+  type            String   @default("followup")
+  modality        String   @default("in-person")
+  notes           String?
+  paymentStatus   String   @default("pending")
+  amount          Int
+  meetLink        String?
+  calendarEventId String?
+  createdAt       DateTime @default(now())
 
   patient  Patient  @relation(fields: [patientId], references: [id])
   doctor   Doctor   @relation(fields: [doctorId], references: [id])

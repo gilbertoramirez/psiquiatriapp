@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getStripe } from '@/lib/stripe';
 import { verifyToken } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { createCalendarEvent } from '@/lib/google-calendar';
 
 function getToken(request: NextRequest) {
   const auth = request.headers.get('authorization');
@@ -23,7 +24,14 @@ export async function POST(request: NextRequest) {
     const session = await getStripe().checkout.sessions.retrieve(sessionId);
 
     if (session.payment_status === 'paid') {
-      const appointment = await prisma.appointment.findUnique({ where: { id: appointmentId } });
+      const appointment = await prisma.appointment.findUnique({
+        where: { id: appointmentId },
+        include: {
+          doctor: { select: { name: true, address: true } },
+          patient: { select: { name: true, email: true } },
+        },
+      });
+
       if (appointment && appointment.paymentStatus !== 'paid') {
         await prisma.$transaction([
           prisma.appointment.update({
@@ -42,7 +50,29 @@ export async function POST(request: NextRequest) {
             },
           }),
         ]);
+
+        if (!appointment.meetLink) {
+          const { meetLink, eventId } = await createCalendarEvent({
+            patientName: appointment.patient.name,
+            patientEmail: appointment.patient.email,
+            doctorName: appointment.doctor.name,
+            date: appointment.date,
+            startTime: appointment.startTime,
+            endTime: appointment.endTime,
+            type: appointment.type,
+            modality: appointment.modality,
+            address: appointment.doctor.address || undefined,
+          });
+
+          if (meetLink || eventId) {
+            await prisma.appointment.update({
+              where: { id: appointmentId },
+              data: { meetLink, calendarEventId: eventId },
+            });
+          }
+        }
       }
+
       return NextResponse.json({ success: true, status: 'paid' });
     }
 
