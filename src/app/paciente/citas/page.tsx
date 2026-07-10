@@ -73,6 +73,12 @@ export default function CitasPage() {
   const [showBooking, setShowBooking] = useState(false);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
+  const [rescheduleId, setRescheduleId] = useState<string | null>(null);
+  const [rescheduleDate, setRescheduleDate] = useState<Date | null>(null);
+  const [rescheduleSlots, setRescheduleSlots] = useState<TimeSlot[]>([]);
+  const [rescheduleTime, setRescheduleTime] = useState<string | null>(null);
+  const [rescheduleModality, setRescheduleModality] = useState<string>('in-person');
+  const [rescheduling, setRescheduling] = useState(false);
 
   const loadAppointments = useCallback(async () => {
     try {
@@ -121,6 +127,40 @@ export default function CitasPage() {
       setMessage({ type: 'error', text: err instanceof Error ? err.message : 'Error al agendar cita' });
     } finally {
       setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (rescheduleDate && doctor) {
+      const slots = generateTimeSlots(rescheduleDate, myAppointments, doctor.availableHours);
+      setRescheduleSlots(slots);
+      setRescheduleTime(null);
+      const dayMod = doctor.modalityByDay?.[dayNames[rescheduleDate.getDay()]];
+      if (dayMod === 'online') setRescheduleModality('online');
+      else if (dayMod === 'in-person' || dayMod === 'presencial') setRescheduleModality('in-person');
+    }
+  }, [rescheduleDate, myAppointments, doctor]);
+
+  const handleReschedule = async () => {
+    if (!rescheduleId || !rescheduleDate || !rescheduleTime) return;
+    setRescheduling(true);
+    setMessage({ type: '', text: '' });
+    try {
+      const updated = await appointmentsApi.reschedule({
+        appointmentId: rescheduleId,
+        newDate: rescheduleDate.toISOString().split('T')[0],
+        newStartTime: rescheduleTime,
+        newModality: rescheduleModality,
+      });
+      setMyAppointments(prev => prev.map(a => a.id === rescheduleId ? updated : a));
+      setMessage({ type: 'success', text: 'Cita reagendada exitosamente.' });
+      setRescheduleId(null);
+      setRescheduleDate(null);
+      setRescheduleTime(null);
+    } catch (err: unknown) {
+      setMessage({ type: 'error', text: err instanceof Error ? err.message : 'Error al reagendar' });
+    } finally {
+      setRescheduling(false);
     }
   };
 
@@ -390,22 +430,142 @@ export default function CitasPage() {
                     const hoursUntil = (aptDate.getTime() - Date.now()) / (1000 * 60 * 60);
                     return hoursUntil > 24;
                   })() && (
-                    <button
-                      onClick={async () => {
-                        if (!confirm('¿Estás seguro de que quieres cancelar esta cita?')) return;
-                        try {
-                          await appointmentsApi.cancel(apt.id, 'Cancelada por paciente');
-                          setMyAppointments(prev => prev.map(a => a.id === apt.id ? { ...a, status: 'cancelled' as const } : a));
-                        } catch { /* ignore */ }
-                      }}
-                      className="text-xs text-red-500 hover:text-red-700 font-medium">
-                      Cancelar cita
-                    </button>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => {
+                          setRescheduleId(apt.id);
+                          setRescheduleDate(null);
+                          setRescheduleTime(null);
+                          setRescheduleModality(apt.modality || 'in-person');
+                        }}
+                        className="text-xs text-salmon-600 hover:text-salmon-800 font-medium">
+                        Modificar
+                      </button>
+                      <button
+                        onClick={async () => {
+                          if (!confirm('¿Estás seguro de que quieres cancelar esta cita?')) return;
+                          try {
+                            await appointmentsApi.cancel(apt.id, 'Cancelada por paciente');
+                            setMyAppointments(prev => prev.map(a => a.id === apt.id ? { ...a, status: 'cancelled' as const } : a));
+                          } catch { /* ignore */ }
+                        }}
+                        className="text-xs text-red-500 hover:text-red-700 font-medium">
+                        Cancelar
+                      </button>
+                    </div>
                   )}
                 </div>
               </div>
             ))
           )}
+        </div>
+      )}
+
+      {/* Reschedule Modal */}
+      {rescheduleId && doctor && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white">Modificar Cita</h3>
+              <button onClick={() => { setRescheduleId(null); setRescheduleDate(null); setRescheduleTime(null); }}
+                className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">
+                <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
+            </div>
+
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">Selecciona la nueva fecha y horario</p>
+
+            {/* Mini calendar for reschedule */}
+            <div className="mb-4">
+              <div className="flex items-center justify-between mb-3">
+                <button onClick={() => setCurrentMonth(new Date(year, month - 1, 1))} className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+                </button>
+                <span className="text-sm font-semibold dark:text-white">{MONTH_NAMES[month]} {year}</span>
+                <button onClick={() => setCurrentMonth(new Date(year, month + 1, 1))} className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                </button>
+              </div>
+              <div className="grid grid-cols-7 gap-1 mb-1">
+                {['D', 'L', 'M', 'Mi', 'J', 'V', 'S'].map(d => (
+                  <div key={d} className="text-center text-xs font-medium text-gray-400 py-1">{d}</div>
+                ))}
+              </div>
+              <div className="grid grid-cols-7 gap-1">
+                {calendarDays.map((day, i) => {
+                  if (!day) return <div key={`re-${i}`} />;
+                  const available = isAvailableDay(day);
+                  const isSelected = rescheduleDate && rescheduleDate.getDate() === day && rescheduleDate.getMonth() === month && rescheduleDate.getFullYear() === year;
+                  return (
+                    <button key={day} disabled={!available}
+                      onClick={() => setRescheduleDate(new Date(year, month, day))}
+                      className={`p-1.5 text-xs rounded-lg transition-all ${
+                        isSelected ? 'bg-salmon-400 text-white font-bold' :
+                        available ? 'hover:bg-salmon-50 text-gray-700 dark:text-gray-300' :
+                        'text-gray-300 dark:text-gray-600 cursor-not-allowed'
+                      }`}>
+                      {day}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Time slots */}
+            {rescheduleDate && (
+              <div className="mb-4">
+                <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  {DAY_NAMES[rescheduleDate.getDay()]} {rescheduleDate.getDate()} de {MONTH_NAMES[rescheduleDate.getMonth()]}
+                </p>
+                <div className="grid grid-cols-4 gap-2">
+                  {rescheduleSlots.map(slot => (
+                    <button key={slot.time} disabled={!slot.available}
+                      onClick={() => setRescheduleTime(slot.time)}
+                      className={`py-2 px-2 rounded-lg text-xs font-medium transition-all ${
+                        rescheduleTime === slot.time ? 'bg-salmon-400 text-white shadow-md' :
+                        slot.available ? 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-salmon-50' :
+                        'bg-gray-50 dark:bg-gray-800 text-gray-300 dark:text-gray-600 cursor-not-allowed line-through'
+                      }`}>
+                      {slot.time}
+                    </button>
+                  ))}
+                  {rescheduleSlots.length === 0 && (
+                    <p className="col-span-4 text-gray-400 text-center py-4 text-sm">No hay horarios disponibles</p>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Modality */}
+            {rescheduleTime && (
+              <div className="mb-4">
+                <label className="label-field">Modalidad</label>
+                {(() => {
+                  const dayMod = doctor.modalityByDay?.[dayNames[rescheduleDate!.getDay()]];
+                  if (dayMod === 'online') return <div className="input-field bg-gray-50 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-sm">En línea (Google Meet)</div>;
+                  if (dayMod === 'in-person' || dayMod === 'presencial') return <div className="input-field bg-gray-50 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-sm">Presencial</div>;
+                  return (
+                    <select value={rescheduleModality} onChange={e => setRescheduleModality(e.target.value)} className="input-field text-sm">
+                      <option value="in-person">Presencial</option>
+                      <option value="online">En línea (Google Meet)</option>
+                    </select>
+                  );
+                })()}
+              </div>
+            )}
+
+            {/* Confirm button */}
+            <div className="flex gap-3">
+              <button onClick={() => { setRescheduleId(null); setRescheduleDate(null); setRescheduleTime(null); }}
+                className="flex-1 py-2.5 px-4 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-xl text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                Cancelar
+              </button>
+              <button onClick={handleReschedule} disabled={!rescheduleDate || !rescheduleTime || rescheduling}
+                className="flex-1 btn-primary disabled:opacity-50 disabled:cursor-not-allowed">
+                {rescheduling ? 'Reagendando...' : 'Confirmar cambio'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

@@ -43,6 +43,8 @@ export const appointments = {
     fetchAPI('/appointments/confirm-payment', { method: 'POST', body: JSON.stringify({ appointmentId, method }) }),
   cancel: (appointmentId: string, reason: string) =>
     fetchAPI('/appointments/cancel', { method: 'POST', body: JSON.stringify({ appointmentId, reason }) }),
+  reschedule: (data: { appointmentId: string; newDate: string; newStartTime: string; newModality?: string }) =>
+    fetchAPI('/appointments/reschedule', { method: 'POST', body: JSON.stringify(data) }),
 };
 
 // Prescriptions
