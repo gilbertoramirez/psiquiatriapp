@@ -52,13 +52,11 @@ export interface Appointment {
   endTime: string;
   status: 'scheduled' | 'confirmed' | 'completed' | 'cancelled';
   type: 'initial' | 'followup' | 'emergency';
-  modality: 'in-person' | 'online';
   notes?: string;
   patientName?: string;
   doctorName?: string;
   paymentStatus: 'pending' | 'paid' | 'refunded';
   amount: number;
-  meetLink?: string;
 }
 
 export interface Prescription {

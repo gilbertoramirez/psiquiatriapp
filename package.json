@@ -28,7 +28,6 @@
     "@types/react": "^19.2.14",
     "autoprefixer": "^10.4.27",
     "bcryptjs": "^3.0.3",
-    "googleapis": "^173.0.0",
     "jsonwebtoken": "^9.0.3",
     "next": "^14.2.35",
     "postcss": "^8.5.8",

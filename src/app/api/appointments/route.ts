@@ -31,11 +31,9 @@ export async function GET(request: NextRequest) {
     endTime: a.endTime,
     status: a.status,
     type: a.type,
-    modality: a.modality,
     notes: a.notes,
     paymentStatus: a.paymentStatus,
     amount: a.amount,
-    meetLink: a.meetLink,
     patientName: a.patient.name,
     doctorName: a.doctor.name,
   }));
@@ -48,7 +46,7 @@ export async function POST(request: NextRequest) {
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
 
   try {
-    const { doctorId, patientId, date, startTime, type, modality } = await request.json();
+    const { doctorId, patientId, date, startTime, type } = await request.json();
 
     if (!date || !startTime) {
       return NextResponse.json({ error: 'Datos incompletos' }, { status: 400 });
@@ -120,7 +118,6 @@ export async function POST(request: NextRequest) {
         startTime,
         endTime,
         type: type || 'followup',
-        modality: modality || 'in-person',
         amount: doctor.consultationFee,
       },
       include: {
