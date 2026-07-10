@@ -59,6 +59,8 @@ export interface Appointment {
   paymentStatus: 'pending' | 'paid' | 'refunded';
   amount: number;
   meetLink?: string;
+  cancelledAt?: string;
+  cancelReason?: string;
 }
 
 export interface Prescription {
@@ -164,6 +166,27 @@ export interface BlogPost {
   updatedAt: string;
   published: boolean;
   comments: BlogComment[];
+}
+
+export interface AppNotification {
+  id: string;
+  userId: string;
+  userRole: string;
+  type: string;
+  title: string;
+  message: string;
+  read: boolean;
+  createdAt: string;
+}
+
+export interface ClinicalQuestionnaire {
+  id: string;
+  patientId: string;
+  type: 'PHQ9' | 'GAD7';
+  date: string;
+  answers: number[];
+  score: number;
+  severity: string;
 }
 
 export interface BlogComment {

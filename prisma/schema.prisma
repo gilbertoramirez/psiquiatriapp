@@ -19,6 +19,7 @@ model Doctor {
   passwordHash    String
   availableHours  Json
   modalityByDay   Json?
+  signatureData   String?
   createdAt       DateTime @default(now())
 
   appointments    Appointment[]
@@ -42,32 +43,35 @@ model Patient {
   passwordHash     String?
   createdAt        DateTime @default(now())
 
-  appointments    Appointment[]
-  prescriptions   Prescription[]
-  recommendations Recommendation[]
-  patientLogs     PatientLog[]
-  payments        Payment[]
-  invitations     Invitation[]
-  checkIns        PatientCheckIn[]
+  appointments     Appointment[]
+  prescriptions    Prescription[]
+  recommendations  Recommendation[]
+  patientLogs      PatientLog[]
+  payments         Payment[]
+  invitations      Invitation[]
+  checkIns         PatientCheckIn[]
+  questionnaires   ClinicalQuestionnaire[]
 }
 
 model Appointment {
-  id              String   @id @default(cuid())
+  id              String    @id @default(cuid())
   patientId       String
   doctorId        String
   date            String
   startTime       String
   endTime         String
-  status          String   @default("scheduled")
-  type            String   @default("followup")
-  modality        String   @default("in-person")
+  status          String    @default("scheduled")
+  type            String    @default("followup")
+  modality        String    @default("in-person")
   notes           String?
-  paymentStatus   String   @default("pending")
+  paymentStatus   String    @default("pending")
   amount          Int
   meetLink        String?
   calendarEventId String?
-  reminderSent    Boolean  @default(false)
-  createdAt       DateTime @default(now())
+  reminderSent    Boolean   @default(false)
+  cancelledAt     DateTime?
+  cancelReason    String?
+  createdAt       DateTime  @default(now())
 
   patient  Patient  @relation(fields: [patientId], references: [id])
   doctor   Doctor   @relation(fields: [doctorId], references: [id])
@@ -200,4 +204,32 @@ model PatientCheckIn {
   patient Patient @relation(fields: [patientId], references: [id])
 
   @@index([patientId, date])
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  userRole  String
+  type      String
+  title     String
+  message   String
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId, read])
+}
+
+model ClinicalQuestionnaire {
+  id        String   @id @default(cuid())
+  patientId String
+  type      String
+  date      String
+  answers   Json
+  score     Int
+  severity  String
+  createdAt DateTime @default(now())
+
+  patient Patient @relation(fields: [patientId], references: [id])
+
+  @@index([patientId, type])
 }

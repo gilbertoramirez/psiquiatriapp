@@ -41,6 +41,8 @@ export const appointments = {
   create: (data: Record<string, string>) => fetchAPI('/appointments', { method: 'POST', body: JSON.stringify(data) }),
   confirmPayment: (appointmentId: string, method: string) =>
     fetchAPI('/appointments/confirm-payment', { method: 'POST', body: JSON.stringify({ appointmentId, method }) }),
+  cancel: (appointmentId: string, reason: string) =>
+    fetchAPI('/appointments/cancel', { method: 'POST', body: JSON.stringify({ appointmentId, reason }) }),
 };
 
 // Prescriptions
@@ -90,6 +92,31 @@ export const checkIns = {
   list: () => fetchAPI('/checkins'),
   listByPatient: (patientId: string) => fetchAPI(`/checkins?patientId=${patientId}`),
   create: (data: Record<string, unknown>) => fetchAPI('/checkins', { method: 'POST', body: JSON.stringify(data) }),
+};
+
+// Notifications
+export const notifications = {
+  list: () => fetchAPI('/notifications'),
+  markRead: (id: string) => fetchAPI(`/notifications`, { method: 'PATCH', body: JSON.stringify({ id }) }),
+  markAllRead: () => fetchAPI('/notifications', { method: 'PATCH', body: JSON.stringify({ all: true }) }),
+};
+
+// Questionnaires
+export const questionnaires = {
+  list: () => fetchAPI('/questionnaires'),
+  listByPatient: (patientId: string) => fetchAPI(`/questionnaires?patientId=${patientId}`),
+  create: (data: Record<string, unknown>) => fetchAPI('/questionnaires', { method: 'POST', body: JSON.stringify(data) }),
+};
+
+// Expediente PDF
+export const expediente = {
+  getUrl: (patientId: string) => `/api/expediente?patientId=${patientId}`,
+};
+
+// Doctor profile
+export const doctorProfile = {
+  updateSignature: (signatureData: string) =>
+    fetchAPI('/doctors/signature', { method: 'POST', body: JSON.stringify({ signatureData }) }),
 };
 
 // Patients (doctor)
