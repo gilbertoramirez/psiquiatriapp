@@ -85,6 +85,13 @@ export const invitations = {
     fetchAPI('/invitations/accept', { method: 'POST', body: JSON.stringify(data) }),
 };
 
+// Check-ins (patient)
+export const checkIns = {
+  list: () => fetchAPI('/checkins'),
+  listByPatient: (patientId: string) => fetchAPI(`/checkins?patientId=${patientId}`),
+  create: (data: Record<string, unknown>) => fetchAPI('/checkins', { method: 'POST', body: JSON.stringify(data) }),
+};
+
 // Patients (doctor)
 export const patients = {
   stats: () => fetchAPI('/patients'),

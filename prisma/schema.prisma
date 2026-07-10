@@ -48,6 +48,7 @@ model Patient {
   patientLogs     PatientLog[]
   payments        Payment[]
   invitations     Invitation[]
+  checkIns        PatientCheckIn[]
 }
 
 model Appointment {
@@ -65,6 +66,7 @@ model Appointment {
   amount          Int
   meetLink        String?
   calendarEventId String?
+  reminderSent    Boolean  @default(false)
   createdAt       DateTime @default(now())
 
   patient  Patient  @relation(fields: [patientId], references: [id])
@@ -117,6 +119,7 @@ model PatientLog {
   notes         String
   treatment     String
   progress      String   @default("stable")
+  soapNotes     Json?
   createdAt     DateTime @default(now())
 
   patient Patient @relation(fields: [patientId], references: [id])
@@ -179,4 +182,22 @@ model Invitation {
 
   patient Patient @relation(fields: [patientId], references: [id])
   doctor  Doctor  @relation(fields: [doctorId], references: [id])
+}
+
+model PatientCheckIn {
+  id            String   @id @default(cuid())
+  patientId     String
+  date          String
+  mood          Int
+  sleep         Float
+  sleepQuality  Int
+  anxiety       Int
+  energy        Int
+  sideEffects   String?
+  notes         String?
+  createdAt     DateTime @default(now())
+
+  patient Patient @relation(fields: [patientId], references: [id])
+
+  @@index([patientId, date])
 }
