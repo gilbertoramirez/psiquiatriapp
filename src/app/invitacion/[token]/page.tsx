@@ -1,11 +1,11 @@
 'use client';
 
-import { useState, useEffect, use } from 'react';
+import { useState, useEffect } from 'react';
 import { invitations as invitationsApi } from '@/lib/api';
 import { useRouter } from 'next/navigation';
 
-export default function InvitacionPage({ params }: { params: Promise<{ token: string }> }) {
-  const { token } = use(params);
+export default function InvitacionPage({ params }: { params: { token: string } }) {
+  const { token } = params;
   const router = useRouter();
   const [patientName, setPatientName] = useState('');
   const [patientEmail, setPatientEmail] = useState('');
