@@ -15,6 +15,11 @@ export interface Patient extends User {
   emergencyContact?: string;
   emergencyPhone?: string;
   medicalHistory?: string;
+  curp?: string;
+  creadoPorDoctor?: boolean;   // true = doctor-managed, no login access
+  sinCuentaDigital?: boolean;  // true = no email/password
+  doctorId?: string;           // doctor who registered them
+  notas?: string;              // doctor's internal notes about the patient
 }
 
 export interface Doctor extends User {

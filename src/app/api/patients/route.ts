@@ -50,8 +50,10 @@ export async function GET(request: NextRequest) {
     }
 
     if (type === 'list') {
-      const patientIds = [...new Set(db.appointments.filter(a => a.doctorId === user.id).map(a => a.patientId))];
-      const patients = db.patients.filter(p => patientIds.includes(p.id));
+      const apptPatientIds = new Set(db.appointments.filter(a => a.doctorId === user.id).map(a => a.patientId));
+      const managedPatientIds = new Set(db.patients.filter(p => p.creadoPorDoctor && p.doctorId === user.id).map(p => p.id));
+      const allIds = new Set([...apptPatientIds, ...managedPatientIds]);
+      const patients = db.patients.filter(p => allIds.has(p.id));
       return NextResponse.json(patients);
     }
 

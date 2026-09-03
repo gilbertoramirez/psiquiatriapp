@@ -91,3 +91,10 @@ export const patients = {
   createLog: (data: Record<string, unknown>) => fetchAPI('/patients', { method: 'POST', body: JSON.stringify(data) }),
   addAddendum: (logId: string, contenido: string) => fetchAPI('/patients', { method: 'PATCH', body: JSON.stringify({ logId, contenido }) }),
 };
+
+// Doctor-managed patients (patients without digital accounts)
+export const doctorPatients = {
+  list: () => fetchAPI('/doctor/patients'),
+  create: (data: Record<string, string | undefined>) => fetchAPI('/doctor/patients', { method: 'POST', body: JSON.stringify(data) }),
+  update: (patientId: string, data: Record<string, string | undefined>) => fetchAPI('/doctor/patients', { method: 'PATCH', body: JSON.stringify({ patientId, ...data }) }),
+};
