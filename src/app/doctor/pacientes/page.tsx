@@ -24,6 +24,62 @@ const emptyForm: FormData = {
   notas: '',
 };
 
+const fieldCls = "w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-salmon-400";
+const labelCls = "block text-xs font-medium text-gray-600 mb-1";
+
+function PatientForm({ data, onChange, onSubmit, onCancel, title, error, saving }: {
+  data: FormData;
+  onChange: (d: FormData) => void;
+  onSubmit: (e: React.FormEvent) => void;
+  onCancel: () => void;
+  title: string;
+  error: string;
+  saving: boolean;
+}) {
+  return (
+    <form onSubmit={onSubmit} className="bg-white border border-gray-200 rounded-xl p-6 space-y-4">
+      <h3 className="font-semibold text-gray-800">{title}</h3>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="md:col-span-2">
+          <label className={labelCls}>Nombre completo <span className="text-red-500">*</span></label>
+          <input className={fieldCls} value={data.nombre} onChange={e => onChange({ ...data, nombre: e.target.value })} placeholder="Nombre completo del paciente" required />
+        </div>
+        <div>
+          <label className={labelCls}>Teléfono</label>
+          <input className={fieldCls} value={data.telefono} onChange={e => onChange({ ...data, telefono: e.target.value })} placeholder="+52 55 0000 0000" />
+        </div>
+        <div>
+          <label className={labelCls}>Fecha de nacimiento</label>
+          <input type="date" className={fieldCls} value={data.fechaNacimiento} onChange={e => onChange({ ...data, fechaNacimiento: e.target.value })} />
+        </div>
+        <div>
+          <label className={labelCls}>CURP</label>
+          <input className={fieldCls} value={data.curp} onChange={e => onChange({ ...data, curp: e.target.value.toUpperCase() })} placeholder="XXXX000000XXXXXXXX00" maxLength={18} />
+        </div>
+        <div>
+          <label className={labelCls}>Contacto de emergencia</label>
+          <input className={fieldCls} value={data.contactoEmergencia} onChange={e => onChange({ ...data, contactoEmergencia: e.target.value })} placeholder="Nombre del contacto" />
+        </div>
+        <div>
+          <label className={labelCls}>Teléfono de emergencia</label>
+          <input className={fieldCls} value={data.telefonoEmergencia} onChange={e => onChange({ ...data, telefonoEmergencia: e.target.value })} placeholder="+52 55 0000 0000" />
+        </div>
+        <div className="md:col-span-2">
+          <label className={labelCls}>Notas internas</label>
+          <textarea className={fieldCls} rows={3} value={data.notas} onChange={e => onChange({ ...data, notas: e.target.value })} placeholder="Observaciones, referencias, contexto..." />
+        </div>
+      </div>
+      {error && <p className="text-red-600 text-sm">{error}</p>}
+      <div className="flex gap-3 justify-end">
+        <button type="button" onClick={onCancel} className="px-4 py-2 text-sm border border-gray-200 rounded-lg hover:bg-gray-50">Cancelar</button>
+        <button type="submit" disabled={saving} className="px-4 py-2 text-sm bg-salmon-400 text-white rounded-lg hover:bg-salmon-500 disabled:opacity-50">
+          {saving ? 'Guardando...' : 'Guardar'}
+        </button>
+      </div>
+    </form>
+  );
+}
+
 export default function PacientesPage() {
   const [patients, setPatients] = useState<Patient[]>([]);
   const [loading, setLoading] = useState(true);
@@ -130,60 +186,6 @@ export default function PacientesPage() {
     return Math.floor(diff / (365.25 * 24 * 3600 * 1000));
   }
 
-  const fieldCls = "w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-salmon-400";
-  const labelCls = "block text-xs font-medium text-gray-600 mb-1";
-
-  function PatientForm({ data, onChange, onSubmit, onCancel, title }: {
-    data: FormData;
-    onChange: (d: FormData) => void;
-    onSubmit: (e: React.FormEvent) => void;
-    onCancel: () => void;
-    title: string;
-  }) {
-    return (
-      <form onSubmit={onSubmit} className="bg-white border border-gray-200 rounded-xl p-6 space-y-4">
-        <h3 className="font-semibold text-gray-800">{title}</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="md:col-span-2">
-            <label className={labelCls}>Nombre completo <span className="text-red-500">*</span></label>
-            <input className={fieldCls} value={data.nombre} onChange={e => onChange({ ...data, nombre: e.target.value })} placeholder="Nombre completo del paciente" required />
-          </div>
-          <div>
-            <label className={labelCls}>Teléfono</label>
-            <input className={fieldCls} value={data.telefono} onChange={e => onChange({ ...data, telefono: e.target.value })} placeholder="+52 55 0000 0000" />
-          </div>
-          <div>
-            <label className={labelCls}>Fecha de nacimiento</label>
-            <input type="date" className={fieldCls} value={data.fechaNacimiento} onChange={e => onChange({ ...data, fechaNacimiento: e.target.value })} />
-          </div>
-          <div>
-            <label className={labelCls}>CURP</label>
-            <input className={fieldCls} value={data.curp} onChange={e => onChange({ ...data, curp: e.target.value.toUpperCase() })} placeholder="XXXX000000XXXXXXXX00" maxLength={18} />
-          </div>
-          <div>
-            <label className={labelCls}>Contacto de emergencia</label>
-            <input className={fieldCls} value={data.contactoEmergencia} onChange={e => onChange({ ...data, contactoEmergencia: e.target.value })} placeholder="Nombre del contacto" />
-          </div>
-          <div>
-            <label className={labelCls}>Teléfono de emergencia</label>
-            <input className={fieldCls} value={data.telefonoEmergencia} onChange={e => onChange({ ...data, telefonoEmergencia: e.target.value })} placeholder="+52 55 0000 0000" />
-          </div>
-          <div className="md:col-span-2">
-            <label className={labelCls}>Notas internas</label>
-            <textarea className={fieldCls} rows={3} value={data.notas} onChange={e => onChange({ ...data, notas: e.target.value })} placeholder="Observaciones, referencias, contexto..." />
-          </div>
-        </div>
-        {error && <p className="text-red-600 text-sm">{error}</p>}
-        <div className="flex gap-3 justify-end">
-          <button type="button" onClick={onCancel} className="px-4 py-2 text-sm border border-gray-200 rounded-lg hover:bg-gray-50">Cancelar</button>
-          <button type="submit" disabled={saving} className="px-4 py-2 text-sm bg-salmon-400 text-white rounded-lg hover:bg-salmon-500 disabled:opacity-50">
-            {saving ? 'Guardando...' : 'Guardar'}
-          </button>
-        </div>
-      </form>
-    );
-  }
-
   return (
     <div className="max-w-5xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
@@ -211,6 +213,8 @@ export default function PacientesPage() {
           onChange={setForm}
           onSubmit={handleCreate}
           onCancel={() => { setShowForm(false); setError(''); setForm(emptyForm); }}
+          error={error}
+          saving={saving}
         />
       )}
 
@@ -221,6 +225,8 @@ export default function PacientesPage() {
           onChange={setEditForm}
           onSubmit={handleUpdate}
           onCancel={() => { setEditing(null); setError(''); }}
+          error={error}
+          saving={saving}
         />
       )}
 
