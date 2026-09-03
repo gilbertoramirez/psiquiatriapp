@@ -34,10 +34,11 @@ const globalForAuth = globalThis as unknown as { __psiquiatriapp_passwords?: Map
 
 if (!globalForAuth.__psiquiatriapp_passwords) {
   globalForAuth.__psiquiatriapp_passwords = new Map();
-  // Pre-set doctor password
+  // Pre-set doctor passwords
   (async () => {
     const hash = await hashPassword('doctor123');
     globalForAuth.__psiquiatriapp_passwords!.set('doc-1', hash);
+    globalForAuth.__psiquiatriapp_passwords!.set('doc-2', hash);
   })();
 }
 

@@ -35,10 +35,28 @@ const defaultDoctor: Doctor = {
   },
 };
 
+const doctorClaudia: Doctor = {
+  id: 'doc-2',
+  email: 'dra.claudiahdz@psiquiatriapp.com',
+  name: 'Dra. Claudia Anahí Hernández Carrillo',
+  role: 'doctor',
+  specialty: 'Psiquiatría',
+  licenseNumber: 'PSQ-2024-002',
+  consultationFee: 1500,
+  createdAt: new Date().toISOString(),
+  availableHours: {
+    monday: [{ start: '09:00', end: '14:00' }, { start: '16:00', end: '19:00' }],
+    tuesday: [{ start: '09:00', end: '14:00' }, { start: '16:00', end: '19:00' }],
+    wednesday: [{ start: '09:00', end: '14:00' }],
+    thursday: [{ start: '09:00', end: '14:00' }, { start: '16:00', end: '19:00' }],
+    friday: [{ start: '09:00', end: '14:00' }],
+  },
+};
+
 function createDatabase(): Database {
   return {
     patients: [],
-    doctors: [defaultDoctor],
+    doctors: [defaultDoctor, doctorClaudia],
     appointments: [],
     prescriptions: [],
     recommendations: [],
