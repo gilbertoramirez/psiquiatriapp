@@ -82,24 +82,30 @@ export async function POST(request: NextRequest) {
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
 
   try {
-    const { doctorId, patientId, date, startTime, type } = await request.json();
+    const { doctorId: rawDoctorId, patientId, patientNameFree, date, startTime, type, notes } = await request.json();
 
-    if (!doctorId || !date || !startTime) {
+    if (!date || !startTime) {
       return NextResponse.json({ error: 'Datos incompletos' }, { status: 400 });
     }
 
-    const doctor = db.doctors.find(d => d.id === doctorId);
+    // Doctor can pass 'self' to use their own id
+    const resolvedDoctorId = (rawDoctorId === 'self' || !rawDoctorId) && user.role === 'doctor' ? user.id : rawDoctorId;
+
+    const doctor = db.doctors.find(d => d.id === resolvedDoctorId);
     if (!doctor) return NextResponse.json({ error: 'Doctor no encontrado' }, { status: 404 });
 
-    // Validate the selected date is not in the past
-    const appointmentDate = new Date(date + 'T00:00:00');
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    if (appointmentDate < today) {
-      return NextResponse.json({ error: 'No puede agendar citas en fechas pasadas' }, { status: 400 });
+    // Doctors can also schedule past appointments (e.g. logging)
+    if (user.role !== 'doctor') {
+      const appointmentDate = new Date(date + 'T00:00:00');
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      if (appointmentDate < today) {
+        return NextResponse.json({ error: 'No puede agendar citas en fechas pasadas' }, { status: 400 });
+      }
     }
 
     // Validate the time is within available hours
+    const appointmentDate = new Date(date + 'T12:00:00');
     const dayOfWeek = appointmentDate.getDay();
     const dayName = dayNames[dayOfWeek];
     const availableSlots = doctor.availableHours[dayName];
@@ -125,19 +131,38 @@ export async function POST(request: NextRequest) {
     // Check for conflicts
     const endTime = `${String(Math.floor((startMinutes + 60) / 60)).padStart(2, '0')}:${String((startMinutes + 60) % 60).padStart(2, '0')}`;
     const conflict = db.appointments.find(
-      a => a.doctorId === doctorId && a.date === date && a.startTime === startTime && a.status !== 'cancelled'
+      a => a.doctorId === resolvedDoctorId && a.date === date && a.startTime === startTime && a.status !== 'cancelled'
     );
 
     if (conflict) {
       return NextResponse.json({ error: 'Este horario ya está ocupado' }, { status: 409 });
     }
 
-    const resolvedPatientId = user.role === 'doctor' ? patientId : user.id;
-    const resolvedDoctorId = user.role === 'doctor' ? user.id : doctorId;
+    // If doctor passes a free-text patient name, create a minimal patient record
+    let finalPatientId = user.role === 'doctor' ? patientId : user.id;
+    let patientNameResolved: string | undefined;
+
+    if (user.role === 'doctor' && (!patientId || patientId === '') && patientNameFree) {
+      const { v4: uuid2 } = await import('uuid');
+      const tempId = `patient-temp-${uuid2()}`;
+      const now2 = new Date().toISOString();
+      db.patients.push({
+        id: tempId,
+        email: `sin-cuenta-${tempId}@interno`,
+        name: patientNameFree.trim(),
+        role: 'patient',
+        createdAt: now2,
+        creadoPorDoctor: true,
+        sinCuentaDigital: true,
+        doctorId: user.id,
+      });
+      finalPatientId = tempId;
+      patientNameResolved = patientNameFree.trim();
+    }
 
     const appointment: Appointment = {
       id: `apt-${uuidv4()}`,
-      patientId: resolvedPatientId,
+      patientId: finalPatientId,
       doctorId: resolvedDoctorId,
       date,
       startTime,
@@ -146,13 +171,17 @@ export async function POST(request: NextRequest) {
       type: type || 'followup',
       paymentStatus: 'pending',
       amount: doctor.consultationFee,
+      notes: notes || undefined,
     };
 
     db.appointments.push(appointment);
 
+    const patientName = patientNameResolved || db.patients.find(p => p.id === finalPatientId)?.name || 'Paciente';
+
     return NextResponse.json({
       ...appointment,
       doctorName: doctor.name,
+      patientName,
     }, { status: 201 });
   } catch {
     return NextResponse.json({ error: 'Error al crear cita' }, { status: 500 });

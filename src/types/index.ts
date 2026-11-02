@@ -42,7 +42,7 @@ export interface Appointment {
   startTime: string;
   endTime: string;
   status: 'scheduled' | 'confirmed' | 'completed' | 'cancelled';
-  type: 'initial' | 'followup' | 'emergency';
+  type: 'initial' | 'followup' | 'emergency' | 'urgency';
   notes?: string;
   patientName?: string;
   doctorName?: string;
