@@ -27,6 +27,75 @@ const emptyForm: FormData = {
 const fieldCls = "w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-salmon-400";
 const labelCls = "block text-xs font-medium text-gray-600 mb-1";
 
+function MergeModal({ patient, onMerge, onClose }: {
+  patient: Patient;
+  onMerge: (patientId: string, email: string) => Promise<void>;
+  onClose: () => void;
+}) {
+  const [email, setEmail] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!email.trim()) { setError('Ingresa el email del paciente'); return; }
+    setSaving(true);
+    setError('');
+    try {
+      await onMerge(patient.id, email.trim());
+      onClose();
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Error al vincular');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm">
+        <div className="flex items-center justify-between p-5 border-b border-gray-100">
+          <div>
+            <h2 className="font-semibold text-gray-800">Vincular paciente</h2>
+            <p className="text-xs text-gray-500 mt-0.5">"{patient.name}"</p>
+          </div>
+          <button onClick={onClose} className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-400">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+          </button>
+        </div>
+        <form onSubmit={handleSubmit} className="p-5 space-y-4">
+          <p className="text-sm text-gray-600">
+            Ingresa el email de la cuenta digital del paciente. Todos sus registros (citas, notas, expediente) se migrarán a esa cuenta.
+          </p>
+          <div>
+            <label className={labelCls}>Email de la cuenta registrada <span className="text-red-500">*</span></label>
+            <input
+              type="email"
+              className={fieldCls}
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              placeholder="paciente@email.com"
+              autoFocus
+            />
+          </div>
+          {error && <p className="text-red-600 text-sm">{error}</p>}
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs text-amber-700">
+            Esta acción es irreversible. El registro temporal se eliminará y todos los datos pasarán a la cuenta indicada.
+          </div>
+          <div className="flex gap-3">
+            <button type="button" onClick={onClose} className="flex-1 py-2 text-sm border border-gray-200 rounded-lg hover:bg-gray-50">
+              Cancelar
+            </button>
+            <button type="submit" disabled={saving} className="flex-1 py-2 text-sm bg-salmon-400 text-white rounded-lg hover:bg-salmon-500 disabled:opacity-50 font-medium">
+              {saving ? 'Vinculando...' : 'Vincular'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 function PatientForm({ data, onChange, onSubmit, onCancel, title, error, saving }: {
   data: FormData;
   onChange: (d: FormData) => void;
@@ -91,6 +160,7 @@ export default function PacientesPage() {
   const [search, setSearch] = useState('');
   const [editing, setEditing] = useState<Patient | null>(null);
   const [editForm, setEditForm] = useState<FormData>(emptyForm);
+  const [merging, setMerging] = useState<Patient | null>(null);
 
   useEffect(() => {
     load();
@@ -161,6 +231,15 @@ export default function PacientesPage() {
     }
   }
 
+  async function handleMerge(patientId: string, realEmail: string) {
+    const result = await doctorPatients.merge(patientId, realEmail);
+    if (result.merged) {
+      setPatients(prev => prev.filter(p => p.id !== patientId));
+      setSuccess('Paciente vinculado correctamente');
+      setTimeout(() => setSuccess(''), 3000);
+    }
+  }
+
   function openEdit(p: Patient) {
     setEditing(p);
     setEditForm({
@@ -188,6 +267,13 @@ export default function PacientesPage() {
 
   return (
     <div className="max-w-5xl mx-auto space-y-6">
+      {merging && (
+        <MergeModal
+          patient={merging}
+          onMerge={handleMerge}
+          onClose={() => setMerging(null)}
+        />
+      )}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-800">Mis Pacientes</h1>
@@ -286,6 +372,15 @@ export default function PacientesPage() {
                     >
                       Notas
                     </a>
+                    {p.sinCuentaDigital && (
+                      <button
+                        onClick={() => setMerging(p)}
+                        className="px-3 py-1.5 text-xs bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 border border-blue-200"
+                        title="Vincular con cuenta registrada"
+                      >
+                        Vincular
+                      </button>
+                    )}
                     <button
                       onClick={() => openEdit(p)}
                       className="px-3 py-1.5 text-xs bg-salmon-50 text-salmon-600 rounded-lg hover:bg-salmon-100 border border-salmon-200"

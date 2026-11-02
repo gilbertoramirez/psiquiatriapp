@@ -97,4 +97,5 @@ export const doctorPatients = {
   list: () => fetchAPI('/doctor/patients'),
   create: (data: Record<string, string | undefined>) => fetchAPI('/doctor/patients', { method: 'POST', body: JSON.stringify(data) }),
   update: (patientId: string, data: Record<string, string | undefined>) => fetchAPI('/doctor/patients', { method: 'PATCH', body: JSON.stringify({ patientId, ...data }) }),
+  merge: (patientId: string, realEmail: string) => fetchAPI('/doctor/patients', { method: 'PATCH', body: JSON.stringify({ patientId, action: 'merge', realEmail }) }),
 };

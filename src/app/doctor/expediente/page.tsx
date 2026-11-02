@@ -195,7 +195,7 @@ export default function ExpedientePage() {
                   </div>
                   <div className="min-w-0">
                     <p className="font-medium text-sm text-gray-900 truncate">{p.name}</p>
-                    <p className="text-xs text-gray-400 truncate">{p.email}</p>
+                    <p className="text-xs text-gray-400 truncate">{p.sinCuentaDigital ? 'Sin cuenta digital' : p.email}</p>
                   </div>
                 </button>
               ))}

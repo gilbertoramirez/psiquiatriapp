@@ -60,7 +60,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// PATCH - update patient info
+// PATCH - update patient info OR merge temp patient with real account
 export async function PATCH(request: NextRequest) {
   const user = getToken(request);
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
@@ -70,6 +70,43 @@ export async function PATCH(request: NextRequest) {
     const body = await request.json();
     if (!body.patientId) return NextResponse.json({ error: 'ID de paciente requerido' }, { status: 400 });
 
+    // Merge action: link temp patient to a real patient account by email
+    if (body.action === 'merge') {
+      if (!body.realEmail) return NextResponse.json({ error: 'Email del paciente real requerido' }, { status: 400 });
+
+      const tempPatient = db.patients.find(p => p.id === body.patientId && p.doctorId === user.id && p.creadoPorDoctor);
+      if (!tempPatient) return NextResponse.json({ error: 'Paciente temporal no encontrado' }, { status: 404 });
+
+      const realPatient = db.patients.find(p => p.email === body.realEmail && !p.creadoPorDoctor);
+      if (!realPatient) return NextResponse.json({ error: 'No se encontró un paciente registrado con ese email' }, { status: 404 });
+
+      const tempId = tempPatient.id;
+      const realId = realPatient.id;
+
+      // Migrate appointments
+      db.appointments.forEach(a => { if (a.patientId === tempId) a.patientId = realId; });
+
+      // Migrate patient logs (notas de evolución)
+      db.patientLogs.forEach(l => { if (l.patientId === tempId) l.patientId = realId; });
+
+      // Migrate historia clínica
+      db.historiasClinicas.forEach(h => { if (h.patientId === tempId) h.patientId = realId; });
+
+      // Merge extra fields from temp into real if missing
+      if (!realPatient.phone && tempPatient.phone) realPatient.phone = tempPatient.phone;
+      if (!realPatient.dateOfBirth && tempPatient.dateOfBirth) realPatient.dateOfBirth = tempPatient.dateOfBirth;
+      if (!realPatient.emergencyContact && tempPatient.emergencyContact) realPatient.emergencyContact = tempPatient.emergencyContact;
+      if (!realPatient.emergencyPhone && tempPatient.emergencyPhone) realPatient.emergencyPhone = tempPatient.emergencyPhone;
+      if (!realPatient.curp && tempPatient.curp) realPatient.curp = tempPatient.curp;
+
+      // Remove temp patient record
+      const idx = db.patients.indexOf(tempPatient);
+      if (idx !== -1) db.patients.splice(idx, 1);
+
+      return NextResponse.json({ merged: true, patient: realPatient });
+    }
+
+    // Regular update
     const patient = db.patients.find(p => p.id === body.patientId && p.doctorId === user.id && p.creadoPorDoctor);
     if (!patient) return NextResponse.json({ error: 'Paciente no encontrado' }, { status: 404 });
 
