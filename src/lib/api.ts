@@ -38,6 +38,8 @@ export const auth = {
 // Appointments
 export const appointments = {
   list: () => fetchAPI('/appointments'),
+  slots: (date: string, doctorId?: string) =>
+    fetchAPI(`/appointments?type=slots&date=${date}${doctorId ? `&doctorId=${doctorId}` : ''}`),
   create: (data: Record<string, string>) => fetchAPI('/appointments', { method: 'POST', body: JSON.stringify(data) }),
   confirmPayment: (appointmentId: string, method: string) =>
     fetchAPI('/appointments/confirm-payment', { method: 'POST', body: JSON.stringify({ appointmentId, method }) }),
@@ -126,5 +128,32 @@ export const patients = {
   stats: () => fetchAPI('/patients'),
   list: () => fetchAPI('/patients?type=list'),
   logs: (patientId: string) => fetchAPI(`/patients?type=logs&patientId=${patientId}`),
+  myLogs: () => fetchAPI('/patients?type=logs'),
   createLog: (data: Record<string, unknown>) => fetchAPI('/patients', { method: 'POST', body: JSON.stringify(data) }),
+  addAddendum: (logId: string, contenido: string) =>
+    fetchAPI('/patients', { method: 'PATCH', body: JSON.stringify({ logId, contenido }) }),
 };
+
+// Historia Clínica (NOM-004 §6.1)
+export const historiaClinica = {
+  get: (patientId: string) => fetchAPI(`/historia-clinica?patientId=${patientId}`),
+  create: (data: Record<string, unknown>) => fetchAPI('/historia-clinica', { method: 'POST', body: JSON.stringify(data) }),
+  update: (patientId: string, secciones: Record<string, unknown>) =>
+    fetchAPI('/historia-clinica', { method: 'PATCH', body: JSON.stringify({ patientId, secciones }) }),
+};
+
+// Patients registered by the doctor without a digital account
+export const doctorPatients = {
+  list: () => fetchAPI('/doctor/patients'),
+  create: (data: Record<string, string>) => fetchAPI('/doctor/patients', { method: 'POST', body: JSON.stringify(data) }),
+  update: (patientId: string, data: Record<string, string>) =>
+    fetchAPI('/doctor/patients', { method: 'PATCH', body: JSON.stringify({ patientId, ...data }) }),
+};
+
+// Contact line for a patient; hides the internal placeholder email of patients without an account.
+export function patientContact(p: { email: string; phone?: string | null; managedByDoctorId?: string | null }): string {
+  if (p.managedByDoctorId || p.email.endsWith('@interno.psiquiatriapp')) {
+    return p.phone ? `Sin cuenta digital · ${p.phone}` : 'Sin cuenta digital';
+  }
+  return p.email;
+}

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { doctorHasPatient } from '@/lib/clinical-record';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -21,7 +22,7 @@ export async function GET(req: NextRequest) {
   }
 
   const patient = await prisma.patient.findUnique({ where: { id: patientId } });
-  if (!patient) {
+  if (!patient || !(await doctorHasPatient(decoded.id, patientId))) {
     return NextResponse.json({ error: 'Paciente no encontrado' }, { status: 404 });
   }
 
@@ -30,7 +31,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Doctor no encontrado' }, { status: 404 });
   }
 
-  const [appointments, prescriptions, logs, checkIns, questionnaires] = await Promise.all([
+  const [appointments, prescriptions, logs, checkIns, questionnaires, historia] = await Promise.all([
     prisma.appointment.findMany({
       where: { patientId, doctorId: decoded.id },
       orderBy: { date: 'desc' },
@@ -52,7 +53,12 @@ export async function GET(req: NextRequest) {
       where: { patientId },
       orderBy: { date: 'desc' },
     }),
+    prisma.historiaClinica.findUnique({ where: { patientId } }),
   ]);
+
+  type Diag = { codigo: string; descripcion: string; tipo?: string };
+  const diagText = (d: unknown) =>
+    Array.isArray(d) ? (d as Diag[]).map(x => `${x.codigo} ${x.descripcion}${x.tipo ? ` (${x.tipo})` : ''}`).join('; ') : '';
 
   const doc = new jsPDF();
   const pageWidth = doc.internal.pageSize.getWidth();
@@ -81,10 +87,35 @@ export async function GET(req: NextRequest) {
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
   doc.text(`Nombre: ${patient.name}`, 14, y); y += 5;
-  doc.text(`Email: ${patient.email}`, 14, y); y += 5;
+  if (!patient.email.endsWith('@interno.psiquiatriapp')) { doc.text(`Email: ${patient.email}`, 14, y); y += 5; }
   if (patient.phone) { doc.text(`Telefono: ${patient.phone}`, 14, y); y += 5; }
   if (patient.dateOfBirth) { doc.text(`Fecha de nacimiento: ${patient.dateOfBirth}`, 14, y); y += 5; }
+  if (patient.curp) { doc.text(`CURP: ${patient.curp}`, 14, y); y += 5; }
   y += 5;
+
+  if (historia) {
+    const writeBlock = (label: string, text: string) => {
+      if (!text) return;
+      if (y > 260) { doc.addPage(); y = 15; }
+      const lines = doc.splitTextToSize(`${label}: ${text}`, pageWidth - 28);
+      doc.text(lines, 14, y);
+      y += lines.length * 4 + 2;
+    };
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Historia Clinica (NOM-004 6.1)', 14, y);
+    y += 6;
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    writeBlock('Elaborada', `${historia.fechaCreacion.toISOString().split('T')[0]} por ${historia.doctorNombre} (Ced. ${historia.doctorCedula || '-'})`);
+    writeBlock('Padecimiento actual', historia.padecimientoActual);
+    writeBlock('Examen mental', historia.examenMental);
+    writeBlock('Diagnosticos CIE-10', diagText(historia.diagnosticos));
+    writeBlock('Pronostico', historia.pronostico);
+    writeBlock('Plan terapeutico', historia.planTerapeutico);
+    writeBlock('Firma (SHA-256)', historia.firmaDigital);
+    y += 6;
+  }
 
   if (appointments.length > 0) {
     doc.setFontSize(14);
@@ -152,6 +183,15 @@ export async function GET(req: NextRequest) {
         doc.text(lines, 14, y);
         y += lines.length * 4 + 2;
       }
+      if (log.diagnosticos) {
+        const lines = doc.splitTextToSize(`Diagnosticos: ${diagText(log.diagnosticos)}`, pageWidth - 28);
+        doc.text(lines, 14, y);
+        y += lines.length * 4 + 2;
+      }
+      if (log.riesgoSuicida || log.riesgoViolencia) {
+        doc.text(`Riesgo suicida: ${log.riesgoSuicida || '-'} - Riesgo de violencia: ${log.riesgoViolencia || '-'}`, 14, y);
+        y += 5;
+      }
       if (log.treatment) {
         const lines = doc.splitTextToSize(`Tratamiento: ${log.treatment}`, pageWidth - 28);
         doc.text(lines, 14, y);
@@ -163,6 +203,18 @@ export async function GET(req: NextRequest) {
         if (soap.objective) { doc.text(`O: ${soap.objective}`, 14, y); y += 4; }
         if (soap.assessment) { doc.text(`A: ${soap.assessment}`, 14, y); y += 4; }
         if (soap.plan) { doc.text(`P: ${soap.plan}`, 14, y); y += 4; }
+      }
+      const addendums = (log.addendums as { fecha: string; contenido: string; usuario: string }[] | null) || [];
+      for (const a of addendums) {
+        const lines = doc.splitTextToSize(`Addendum (${a.fecha.split('T')[0]}, ${a.usuario}): ${a.contenido}`, pageWidth - 28);
+        doc.text(lines, 14, y);
+        y += lines.length * 4 + 2;
+      }
+      if (log.firmaDigital) {
+        doc.setFontSize(7);
+        doc.text(`Firma SHA-256: ${log.firmaDigital}`, 14, y);
+        doc.setFontSize(10);
+        y += 4;
       }
       y += 4;
     }

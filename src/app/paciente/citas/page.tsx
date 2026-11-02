@@ -3,6 +3,15 @@
 import { useState, useEffect, useCallback } from 'react';
 import { appointments as appointmentsApi } from '@/lib/api';
 import { Appointment, TimeSlot } from '@/types';
+import Link from 'next/link';
+
+// YYYY-MM-DD in the user's local timezone (toISOString() can shift the day).
+function formatDateLocal(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
 
 const DAYS_ES: Record<string, string> = {
   sunday: 'Domingo', monday: 'Lunes', tuesday: 'Martes', wednesday: 'Miércoles',
@@ -39,7 +48,7 @@ function generateTimeSlots(date: Date, existingAppointments: Appointment[], doct
   const slots = doctorHours[dayName];
   if (!slots) return [];
 
-  const dateStr = date.toISOString().split('T')[0];
+  const dateStr = formatDateLocal(date);
   const bookedTimes = existingAppointments
     .filter(a => a.date === dateStr && a.status !== 'cancelled')
     .map(a => a.startTime);
@@ -113,7 +122,7 @@ export default function CitasPage() {
     try {
       await appointmentsApi.create({
         doctorId: doctor.id,
-        date: selectedDate.toISOString().split('T')[0],
+        date: formatDateLocal(selectedDate),
         startTime: selectedTime,
         type: appointmentType,
         modality: appointmentModality,
@@ -148,7 +157,7 @@ export default function CitasPage() {
     try {
       const updated = await appointmentsApi.reschedule({
         appointmentId: rescheduleId,
-        newDate: rescheduleDate.toISOString().split('T')[0],
+        newDate: formatDateLocal(rescheduleDate),
         newStartTime: rescheduleTime,
         newModality: rescheduleModality,
       });
@@ -185,7 +194,7 @@ export default function CitasPage() {
   };
 
   const hasAppointment = (day: number) => {
-    const dateStr = new Date(year, month, day).toISOString().split('T')[0];
+    const dateStr = formatDateLocal(new Date(year, month, day));
     return myAppointments.some(a => a.date === dateStr && a.status !== 'cancelled');
   };
 
@@ -418,6 +427,11 @@ export default function CitasPage() {
                   <p className={`text-xs ${apt.paymentStatus === 'paid' ? 'text-green-600' : 'text-orange-600'}`}>
                     {apt.paymentStatus === 'paid' ? 'Pagada' : 'Pago pendiente'}
                   </p>
+                  {apt.paymentStatus === 'pending' && apt.status !== 'cancelled' && (
+                    <Link href="/paciente/pagos" className="btn-primary text-xs py-1 px-3">
+                      Pagar
+                    </Link>
+                  )}
                   {apt.meetLink && apt.paymentStatus === 'paid' && (
                     <a href={apt.meetLink} target="_blank" rel="noopener noreferrer"
                       className="inline-flex items-center gap-1 px-3 py-1 bg-blue-500 text-white text-xs font-medium rounded-full hover:bg-blue-600 transition-colors">

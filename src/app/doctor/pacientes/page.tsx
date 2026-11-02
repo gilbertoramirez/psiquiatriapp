@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { invitations as invitationsApi } from '@/lib/api';
+import ManagedPatients from '@/components/doctor/ManagedPatients';
 
 interface InvitationWithPatient {
   id: string;
@@ -23,6 +24,7 @@ export default function PacientesPage() {
   const [message, setMessage] = useState({ type: '', text: '' });
   const [generatedLink, setGeneratedLink] = useState('');
   const [copied, setCopied] = useState('');
+  const [tab, setTab] = useState<'invitations' | 'managed'>('invitations');
 
   const loadInvitations = useCallback(async () => {
     try {
@@ -63,12 +65,27 @@ export default function PacientesPage() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Pacientes</h1>
-          <p className="text-gray-500 text-sm mt-1">Registra pacientes y genera enlaces de invitación</p>
+          <p className="text-gray-500 text-sm mt-1">Invita pacientes con cuenta o registra pacientes sin cuenta digital</p>
         </div>
-        <button onClick={() => { setShowForm(!showForm); setGeneratedLink(''); setMessage({ type: '', text: '' }); }} className="btn-primary">
-          {showForm ? 'Ver Lista' : '+ Nuevo Paciente'}
+        {tab === 'invitations' && (
+          <button onClick={() => { setShowForm(!showForm); setGeneratedLink(''); setMessage({ type: '', text: '' }); }} className="btn-primary">
+            {showForm ? 'Ver Lista' : '+ Nuevo Paciente'}
+          </button>
+        )}
+      </div>
+
+      <div className="flex bg-gray-100 rounded-lg p-0.5 mb-6 w-fit">
+        <button onClick={() => setTab('invitations')}
+          className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${tab === 'invitations' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}>
+          Con cuenta (invitación)
+        </button>
+        <button onClick={() => setTab('managed')}
+          className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${tab === 'managed' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}>
+          Sin cuenta digital
         </button>
       </div>
+
+      {tab === 'managed' ? <ManagedPatients /> : <>
 
       {message.text && (
         <div className={`mb-4 p-4 rounded-lg ${message.type === 'success' ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>
@@ -157,6 +174,7 @@ export default function PacientesPage() {
           )}
         </div>
       )}
+      </>}
     </div>
   );
 }

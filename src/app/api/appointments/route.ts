@@ -17,6 +17,38 @@ export async function GET(request: NextRequest) {
   const user = getToken(request);
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
 
+  const { searchParams } = new URL(request.url);
+
+  // Available one-hour slots for a doctor on a given date
+  if (searchParams.get('type') === 'slots') {
+    const date = searchParams.get('date');
+    const doctorId = user.role === 'doctor' ? user.id : searchParams.get('doctorId');
+    if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) return NextResponse.json({ error: 'Fecha requerida' }, { status: 400 });
+    if (!doctorId) return NextResponse.json({ error: 'Doctor requerido' }, { status: 400 });
+
+    const doctor = await prisma.doctor.findUnique({ where: { id: doctorId }, select: { availableHours: true } });
+    if (!doctor) return NextResponse.json({ error: 'Doctor no encontrado' }, { status: 404 });
+
+    const dayName = dayNames[new Date(date + 'T12:00:00').getDay()];
+    const ranges = (doctor.availableHours as Record<string, { start: string; end: string }[]>)[dayName] || [];
+
+    const booked = await prisma.appointment.findMany({
+      where: { doctorId, date, status: { not: 'cancelled' } },
+      select: { startTime: true },
+    });
+    const bookedTimes = new Set(booked.map(a => a.startTime));
+
+    const toMinutes = (t: string) => { const [h, m] = t.split(':').map(Number); return h * 60 + m; };
+    const slots: { time: string; available: boolean }[] = [];
+    for (const range of ranges) {
+      for (let m = toMinutes(range.start); m < toMinutes(range.end); m += 60) {
+        const time = `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
+        slots.push({ time, available: !bookedTimes.has(time) });
+      }
+    }
+    return NextResponse.json(slots);
+  }
+
   const appointments = await prisma.appointment.findMany({
     where: user.role === 'doctor' ? { doctorId: user.id } : { patientId: user.id },
     include: { patient: { select: { name: true } }, doctor: { select: { name: true } } },

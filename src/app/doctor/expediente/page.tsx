@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { patients as patientsApi, doctorProfile } from '@/lib/api';
+import { patients as patientsApi, doctorProfile, patientContact } from '@/lib/api';
 import { Patient } from '@/types';
 
 export default function ExpedientePage() {
@@ -134,7 +134,7 @@ export default function ExpedientePage() {
                   <div key={patient.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
                     <div>
                       <p className="font-medium text-gray-900">{patient.name}</p>
-                      <p className="text-sm text-gray-500">{patient.email}</p>
+                      <p className="text-sm text-gray-500">{patientContact(patient)}</p>
                       {patient.phone && <p className="text-sm text-gray-500">{patient.phone}</p>}
                     </div>
                     <button

@@ -28,29 +28,40 @@ model Doctor {
   patientLogs     PatientLog[]
   blogPosts       BlogPost[]
   invitations     Invitation[]
+  historias       HistoriaClinica[]
+  managedPatients Patient[]         @relation("ManagedPatients")
 }
 
 model Patient {
-  id               String   @id @default(cuid())
-  email            String   @unique
-  name             String
-  phone            String?
-  dateOfBirth      String?
-  emergencyContact String?
-  emergencyPhone   String?
-  medicalHistory   String?
-  accountStatus    String   @default("active")
-  passwordHash     String?
-  createdAt        DateTime @default(now())
+  id                String   @id @default(cuid())
+  email             String   @unique
+  name              String
+  phone             String?
+  dateOfBirth       String?
+  emergencyContact  String?
+  emergencyPhone    String?
+  medicalHistory    String?
+  accountStatus     String   @default("active")
+  passwordHash      String?
+  curp              String?
+  notas             String?
+  // Set when the doctor registered the patient without a digital account
+  managedByDoctorId String?
+  createdAt         DateTime @default(now())
 
-  appointments     Appointment[]
-  prescriptions    Prescription[]
-  recommendations  Recommendation[]
-  patientLogs      PatientLog[]
-  payments         Payment[]
-  invitations      Invitation[]
-  checkIns         PatientCheckIn[]
-  questionnaires   ClinicalQuestionnaire[]
+  managedByDoctor Doctor? @relation("ManagedPatients", fields: [managedByDoctorId], references: [id])
+
+  appointments    Appointment[]
+  prescriptions   Prescription[]
+  recommendations Recommendation[]
+  patientLogs     PatientLog[]
+  payments        Payment[]
+  invitations     Invitation[]
+  checkIns        PatientCheckIn[]
+  questionnaires  ClinicalQuestionnaire[]
+  historia        HistoriaClinica?
+
+  @@index([managedByDoctorId])
 }
 
 model Appointment {
@@ -73,8 +84,8 @@ model Appointment {
   cancelReason    String?
   createdAt       DateTime  @default(now())
 
-  patient  Patient  @relation(fields: [patientId], references: [id])
-  doctor   Doctor   @relation(fields: [doctorId], references: [id])
+  patient  Patient   @relation(fields: [patientId], references: [id])
+  doctor   Doctor    @relation(fields: [doctorId], references: [id])
   payments Payment[]
 
   @@index([doctorId, date])
@@ -113,18 +124,41 @@ model Recommendation {
 }
 
 model PatientLog {
-  id            String   @id @default(cuid())
+  id            String  @id @default(cuid())
   patientId     String
   doctorId      String
   date          String
   appointmentId String?
-  mood          Int      @default(5)
+  mood          Int     @default(5)
   symptoms      Json
   notes         String
   treatment     String
-  progress      String   @default("stable")
+  progress      String  @default("stable")
   soapNotes     Json?
-  createdAt     DateTime @default(now())
+
+  // Nota de evolución NOM-004-SSA3-2012 §6.2
+  doctorNombre       String?
+  doctorCedula       String?
+  motivoConsulta     String?
+  evolucionClinica   String?
+  exploracionFisica  String?
+  examenMental       String?
+  riesgoSuicida      String?
+  riesgoViolencia    String?
+  consumoSustancias  String?
+  signosVitales      Json?
+  resultadosEstudios String?
+  diagnosticos       Json?
+  pronostico         String?
+  indicaciones       Json?
+  proximaCita        String?
+
+  // NOM-024-SSA3-2012: integridad y auditoría
+  firmaDigital String?
+  auditTrail   Json?
+  addendums    Json?
+  bloqueado    Boolean  @default(false)
+  createdAt    DateTime @default(now())
 
   patient Patient @relation(fields: [patientId], references: [id])
   doctor  Doctor  @relation(fields: [doctorId], references: [id])
@@ -189,17 +223,17 @@ model Invitation {
 }
 
 model PatientCheckIn {
-  id            String   @id @default(cuid())
-  patientId     String
-  date          String
-  mood          Int
-  sleep         Float
-  sleepQuality  Int
-  anxiety       Int
-  energy        Int
-  sideEffects   String?
-  notes         String?
-  createdAt     DateTime @default(now())
+  id           String   @id @default(cuid())
+  patientId    String
+  date         String
+  mood         Int
+  sleep        Float
+  sleepQuality Int
+  anxiety      Int
+  energy       Int
+  sideEffects  String?
+  notes        String?
+  createdAt    DateTime @default(now())
 
   patient Patient @relation(fields: [patientId], references: [id])
 
@@ -232,4 +266,38 @@ model ClinicalQuestionnaire {
   patient Patient @relation(fields: [patientId], references: [id])
 
   @@index([patientId, type])
+}
+
+// Historia Clínica (NOM-004-SSA3-2012 §6.1), one per patient
+model HistoriaClinica {
+  id                                  String   @id @default(cuid())
+  patientId                           String   @unique
+  doctorId                            String
+  doctorNombre                        String
+  doctorCedula                        String
+  fichaIdentificacion                 Json
+  antecedentesHeredoFamiliares        Json
+  antecedentesPersonalesPatologicos   Json
+  antecedentesPersonalesNoPatologicos Json
+  antecedentesPsiquiatricos           Json
+  padecimientoActual                  String
+  interrogatorio                      Json
+  exploracionFisica                   String   @default("")
+  signosVitales                       Json
+  examenMental                        String   @default("")
+  resultadosEstudiosPrevios           String   @default("")
+  diagnosticos                        Json
+  pronostico                          String   @default("")
+  planTerapeutico                     String   @default("")
+  indicacionesIniciales               Json
+  firmaDigital                        String
+  auditTrail                          Json
+  bloqueado                           Boolean  @default(true)
+  fechaCreacion                       DateTime @default(now())
+  fechaActualizacion                  DateTime @updatedAt
+
+  patient Patient @relation(fields: [patientId], references: [id])
+  doctor  Doctor  @relation(fields: [doctorId], references: [id])
+
+  @@index([doctorId])
 }

@@ -13,6 +13,7 @@ export async function GET() {
       availableHours: true,
       modalityByDay: true,
       address: true,
+      licenseNumber: true,
     },
   });
 

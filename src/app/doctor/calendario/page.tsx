@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { appointments as appointmentsApi, patients as patientsApi } from '@/lib/api';
+import { appointments as appointmentsApi, patients as patientsApi, patientContact } from '@/lib/api';
 import { Appointment } from '@/types';
 
 const MONTH_NAMES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
@@ -281,7 +281,7 @@ export default function CalendarioPage() {
                   <select value={newApptPatient} onChange={e => setNewApptPatient(e.target.value)} className="input-field">
                     <option value="">Selecciona un paciente</option>
                     {patientsList.map(p => (
-                      <option key={p.id} value={p.id}>{p.name} ({p.email})</option>
+                      <option key={p.id} value={p.id}>{p.name} ({patientContact(p)})</option>
                     ))}
                   </select>
                 </div>
