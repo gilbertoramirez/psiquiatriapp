@@ -1,5 +1,5 @@
 import jwt from 'jsonwebtoken';
-import bcrypt from 'bcryptjs';
+import bcrypt, { hashSync } from 'bcryptjs';
 import { User } from '@/types';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'psiquiatriapp-secret-key-change-in-production';
@@ -33,13 +33,11 @@ export function verifyToken(token: string): { id: string; email: string; role: s
 const globalForAuth = globalThis as unknown as { __psiquiatriapp_passwords?: Map<string, string> };
 
 if (!globalForAuth.__psiquiatriapp_passwords) {
-  globalForAuth.__psiquiatriapp_passwords = new Map();
-  // Pre-set doctor passwords
-  (async () => {
-    const hash = await hashPassword('doctor123');
-    globalForAuth.__psiquiatriapp_passwords!.set('doc-1', hash);
-    globalForAuth.__psiquiatriapp_passwords!.set('doc-2', hash);
-  })();
+  const hash = hashSync('doctor123', 10);
+  globalForAuth.__psiquiatriapp_passwords = new Map([
+    ['doc-1', hash],
+    ['doc-2', hash],
+  ]);
 }
 
 const passwords = globalForAuth.__psiquiatriapp_passwords;
