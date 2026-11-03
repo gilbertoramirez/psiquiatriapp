@@ -6,6 +6,7 @@ import { Patient } from '@/types';
 
 interface FormData {
   nombre: string;
+  email: string;
   telefono: string;
   fechaNacimiento: string;
   curp: string;
@@ -16,6 +17,7 @@ interface FormData {
 
 const emptyForm: FormData = {
   nombre: '',
+  email: '',
   telefono: '',
   fechaNacimiento: '',
   curp: '',
@@ -32,7 +34,8 @@ function MergeModal({ patient, onMerge, onClose }: {
   onMerge: (patientId: string, email: string) => Promise<void>;
   onClose: () => void;
 }) {
-  const [email, setEmail] = useState('');
+  const storedEmail = (!patient.email?.includes('@interno') && patient.email) ? patient.email : '';
+  const [email, setEmail] = useState(storedEmail);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -113,6 +116,11 @@ function PatientForm({ data, onChange, onSubmit, onCancel, title, error, saving 
           <label className={labelCls}>Nombre completo <span className="text-red-500">*</span></label>
           <input className={fieldCls} value={data.nombre} onChange={e => onChange({ ...data, nombre: e.target.value })} placeholder="Nombre completo del paciente" required />
         </div>
+        <div className="md:col-span-2">
+          <label className={labelCls}>Email del paciente</label>
+          <input type="email" className={fieldCls} value={data.email} onChange={e => onChange({ ...data, email: e.target.value })} placeholder="paciente@email.com" />
+          <p className="text-[11px] text-gray-400 mt-1">Opcional. Se usará para vincular automáticamente cuando el paciente cree su cuenta.</p>
+        </div>
         <div>
           <label className={labelCls}>Teléfono</label>
           <input className={fieldCls} value={data.telefono} onChange={e => onChange({ ...data, telefono: e.target.value })} placeholder="+52 55 0000 0000" />
@@ -186,6 +194,7 @@ export default function PacientesPage() {
     try {
       const created = await doctorPatients.create({
         nombre: form.nombre,
+        email: form.email || undefined,
         telefono: form.telefono || undefined,
         fechaNacimiento: form.fechaNacimiento || undefined,
         curp: form.curp || undefined,
@@ -213,6 +222,7 @@ export default function PacientesPage() {
     try {
       const updated = await doctorPatients.update(editing.id, {
         nombre: editForm.nombre,
+        email: editForm.email || undefined,
         telefono: editForm.telefono || undefined,
         fechaNacimiento: editForm.fechaNacimiento || undefined,
         curp: editForm.curp || undefined,
@@ -244,6 +254,7 @@ export default function PacientesPage() {
     setEditing(p);
     setEditForm({
       nombre: p.name,
+      email: (!p.email?.includes('@interno') && p.email) ? p.email : '',
       telefono: p.phone || '',
       fechaNacimiento: p.dateOfBirth || '',
       curp: p.curp || '',

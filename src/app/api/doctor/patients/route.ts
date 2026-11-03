@@ -36,9 +36,10 @@ export async function POST(request: NextRequest) {
     const now = new Date().toISOString();
     const id = `patient-managed-${uuidv4()}`;
 
+    const realEmail = body.email?.trim();
     const patient: Patient = {
       id,
-      email: `sin-cuenta-${id}@interno`,
+      email: realEmail || `sin-cuenta-${id}@interno`,
       name: body.nombre.trim(),
       role: 'patient',
       phone: body.telefono || undefined,
@@ -111,6 +112,10 @@ export async function PATCH(request: NextRequest) {
     if (!patient) return NextResponse.json({ error: 'Paciente no encontrado' }, { status: 404 });
 
     if (body.nombre) patient.name = body.nombre.trim();
+    if (body.email !== undefined) {
+      const e = body.email?.trim();
+      patient.email = e || `sin-cuenta-${patient.id}@interno`;
+    }
     if (body.telefono !== undefined) patient.phone = body.telefono || undefined;
     if (body.fechaNacimiento !== undefined) patient.dateOfBirth = body.fechaNacimiento || undefined;
     if (body.contactoEmergencia !== undefined) patient.emergencyContact = body.contactoEmergencia || undefined;
