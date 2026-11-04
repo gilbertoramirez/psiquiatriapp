@@ -15,8 +15,8 @@ export async function GET(request: NextRequest) {
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
   if (user.role !== 'doctor') return NextResponse.json({ error: 'Solo doctores' }, { status: 403 });
 
-  const managed = await db.patients.findManagedByDoctor(user.id);
-  return NextResponse.json(managed);
+  const patients = await db.patients.findAllForDoctor(user.id);
+  return NextResponse.json(patients);
 }
 
 export async function POST(request: NextRequest) {

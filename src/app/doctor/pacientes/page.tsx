@@ -288,7 +288,7 @@ export default function PacientesPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-800">Mis Pacientes</h1>
-          <p className="text-sm text-gray-500 mt-1">Pacientes registrados directamente por usted</p>
+          <p className="text-sm text-gray-500 mt-1">Todos sus pacientes con citas o registrados por usted</p>
         </div>
         <button
           onClick={() => { setShowForm(true); setEditing(null); setError(''); }}
