@@ -33,7 +33,8 @@ export async function POST(request: NextRequest) {
       token,
       user: { id: user.id, name: user.name, email: user.email, role: user.role },
     });
-  } catch {
-    return NextResponse.json({ error: 'Error al iniciar sesión' }, { status: 500 });
+  } catch (err) {
+    console.error('Login error:', err);
+    return NextResponse.json({ error: 'Error al iniciar sesión', detail: String(err) }, { status: 500 });
   }
 }
