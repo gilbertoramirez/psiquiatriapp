@@ -17,6 +17,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@neondatabase/serverless": "^1.2.0",
     "@stripe/stripe-js": "^8.10.0",
     "@types/node": "^25.5.0",
     "@types/react": "^19.2.14",

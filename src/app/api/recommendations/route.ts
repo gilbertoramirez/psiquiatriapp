@@ -16,17 +16,18 @@ export async function GET(request: NextRequest) {
 
   let recommendations: Recommendation[];
   if (user.role === 'doctor') {
-    recommendations = db.recommendations.filter(r => r.doctorId === user.id);
+    recommendations = await db.recommendations.findByDoctorId(user.id);
   } else {
-    recommendations = db.recommendations.filter(r => r.patientId === user.id);
+    recommendations = await db.recommendations.findByPatientId(user.id);
   }
 
-  recommendations = recommendations.map(r => ({
-    ...r,
-    doctorName: db.doctors.find(d => d.id === r.doctorId)?.name || 'Doctor',
-  }));
+  const doctors = await db.doctors.findAll();
+  const doctorMap = new Map(doctors.map(d => [d.id, d.name]));
 
-  return NextResponse.json(recommendations);
+  return NextResponse.json(recommendations.map(r => ({
+    ...r,
+    doctorName: doctorMap.get(r.doctorId) || 'Doctor',
+  })));
 }
 
 export async function POST(request: NextRequest) {
@@ -57,7 +58,7 @@ export async function POST(request: NextRequest) {
       priority: priority || 'medium',
     };
 
-    db.recommendations.push(recommendation);
+    await db.recommendations.create(recommendation);
     return NextResponse.json(recommendation, { status: 201 });
   } catch {
     return NextResponse.json({ error: 'Error al crear recomendación' }, { status: 500 });

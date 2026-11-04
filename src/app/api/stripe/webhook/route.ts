@@ -23,10 +23,9 @@ export async function POST(request: NextRequest) {
       const patientId = session.metadata?.patientId;
 
       if (appointmentId && patientId) {
-        const appointment = db.appointments.find(a => a.id === appointmentId);
+        const appointment = await db.appointments.findById(appointmentId);
         if (appointment) {
-          appointment.paymentStatus = 'paid';
-          appointment.status = 'confirmed';
+          await db.appointments.update(appointmentId, { paymentStatus: 'paid', status: 'confirmed' });
 
           const payment: Payment = {
             id: `pay-${uuidv4()}`,
@@ -39,7 +38,7 @@ export async function POST(request: NextRequest) {
             reference: `STRIPE-${session.id}`,
           };
 
-          db.payments.push(payment);
+          await db.payments.create(payment);
         }
       }
     }

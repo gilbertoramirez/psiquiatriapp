@@ -11,7 +11,6 @@ function getToken(request: NextRequest) {
   return verifyToken(auth.substring(7));
 }
 
-// Generate integrity hash for NOM-024 compliance
 function generarFirmaDigital(log: Omit<PatientLog, 'firmaDigital' | 'auditTrail' | 'addendums' | 'bloqueado'>): string {
   const contenido = JSON.stringify({
     id: log.id,
@@ -26,7 +25,6 @@ function generarFirmaDigital(log: Omit<PatientLog, 'firmaDigital' | 'auditTrail'
   return crypto.createHash('sha256').update(contenido).digest('hex');
 }
 
-// GET patient list (for doctors) or patient logs
 export async function GET(request: NextRequest) {
   const user = getToken(request);
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
@@ -37,7 +35,7 @@ export async function GET(request: NextRequest) {
 
   if (user.role === 'patient') {
     if (type === 'logs') {
-      const logs = db.patientLogs.filter(l => l.patientId === user.id);
+      const logs = await db.patientLogs.findByPatientId(user.id);
       return NextResponse.json(logs);
     }
     return NextResponse.json({ error: 'No autorizado' }, { status: 403 });
@@ -45,15 +43,12 @@ export async function GET(request: NextRequest) {
 
   if (user.role === 'doctor') {
     if (type === 'logs' && patientId) {
-      const logs = db.patientLogs.filter(l => l.patientId === patientId && l.doctorId === user.id);
+      const logs = await db.patientLogs.findByPatientAndDoctor(patientId, user.id);
       return NextResponse.json(logs);
     }
 
     if (type === 'list') {
-      const apptPatientIds = new Set(db.appointments.filter(a => a.doctorId === user.id).map(a => a.patientId));
-      const managedPatientIds = new Set(db.patients.filter(p => p.creadoPorDoctor && p.doctorId === user.id).map(p => p.id));
-      const allIds = new Set([...apptPatientIds, ...managedPatientIds]);
-      const patients = db.patients.filter(p => allIds.has(p.id));
+      const patients = await db.patients.findAllForDoctor(user.id);
       return NextResponse.json(patients);
     }
 
@@ -63,7 +58,7 @@ export async function GET(request: NextRequest) {
     weekEnd.setDate(weekEnd.getDate() + 7);
     const weekEndStr = weekEnd.toISOString().split('T')[0];
 
-    const myAppointments = db.appointments.filter(a => a.doctorId === user.id);
+    const myAppointments = await db.appointments.findByDoctorId(user.id);
     const todayAppts = myAppointments.filter(a => a.date === today);
     const weekAppts = myAppointments.filter(a => a.date >= today && a.date <= weekEndStr);
     const patientIds = [...new Set(myAppointments.map(a => a.patientId))];
@@ -80,7 +75,6 @@ export async function GET(request: NextRequest) {
   return NextResponse.json({ error: 'No autorizado' }, { status: 403 });
 }
 
-// POST - create patient log entry (Nota de Evolución NOM-004-SSA3-2012)
 export async function POST(request: NextRequest) {
   const user = getToken(request);
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
@@ -89,7 +83,6 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
 
-    // Validate required NOM-004 fields
     if (!body.patientId) {
       return NextResponse.json({ error: 'ID de paciente requerido' }, { status: 400 });
     }
@@ -100,7 +93,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Se requiere al menos un diagnóstico con código CIE-10 (NOM-004)' }, { status: 400 });
     }
 
-    const doctor = db.doctors.find(d => d.id === user.id);
+    const doctor = await db.doctors.findById(user.id);
     const now = new Date().toISOString();
 
     const auditEntry: AuditEntry = {
@@ -119,34 +112,20 @@ export async function POST(request: NextRequest) {
       doctorCedula: doctor?.licenseNumber || '',
       date: now,
       appointmentId: body.appointmentId,
-
-      // Evolución del cuadro clínico
       motivoConsulta: body.motivoConsulta || '',
       evolucionClinica: body.evolucionClinica,
       exploracionFisica: body.exploracionFisica || '',
-
-      // Evaluación psiquiátrica
       mood: body.mood || 5,
       symptoms: body.symptoms || [],
       examenMental: body.examenMental || '',
       riesgoSuicida: body.riesgoSuicida || 'nulo',
       riesgoViolencia: body.riesgoViolencia || 'nulo',
       consumoSustancias: body.consumoSustancias || '',
-
-      // Signos vitales
       signosVitales: body.signosVitales || {},
-
-      // Estudios auxiliares
       resultadosEstudios: body.resultadosEstudios || '',
-
-      // Diagnósticos CIE-10
       diagnosticos: body.diagnosticos || [],
-
-      // Pronóstico
       pronostico: body.pronostico || 'reservado',
       progress: body.progress || 'stable',
-
-      // Tratamiento
       indicaciones: body.indicaciones || [],
       treatment: body.treatment || '',
       proximaCita: body.proximaCita || '',
@@ -159,12 +138,11 @@ export async function POST(request: NextRequest) {
       firmaDigital,
       auditTrail: [auditEntry],
       addendums: [],
-      bloqueado: true, // NOM-024: inmutable una vez creado
+      bloqueado: true,
     };
 
-    db.patientLogs.push(log);
+    await db.patientLogs.create(log);
 
-    // Auto-create prescription from indicaciones
     if (log.indicaciones && log.indicaciones.length > 0) {
       const diagText = log.diagnosticos.map((d: { codigo: string; descripcion: string }) => `${d.codigo} - ${d.descripcion}`).join('; ');
       const prescription: Prescription = {
@@ -182,7 +160,7 @@ export async function POST(request: NextRequest) {
         diagnosis: diagText || 'Ver nota de evolución',
         notes: `Generada automáticamente desde nota de evolución ${log.id}`,
       };
-      db.prescriptions.push(prescription);
+      await db.prescriptions.create(prescription);
     }
 
     return NextResponse.json(log, { status: 201 });
@@ -191,7 +169,6 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// PATCH - add addendum to existing log (NOM-024: no deletion, only additions)
 export async function PATCH(request: NextRequest) {
   const user = getToken(request);
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
@@ -204,30 +181,24 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: 'ID de registro y contenido requeridos' }, { status: 400 });
     }
 
-    const log = db.patientLogs.find(l => l.id === logId && l.doctorId === user.id);
-    if (!log) {
+    const existing = await db.patientLogs.findById(logId);
+    if (!existing || existing.doctorId !== user.id) {
       return NextResponse.json({ error: 'Registro no encontrado' }, { status: 404 });
     }
 
     const now = new Date().toISOString();
 
-    // NOM-024: Add addendum instead of modifying
-    log.addendums.push({
-      fecha: now,
-      contenido,
-      usuario: user.name,
-    });
-
-    // Update audit trail
-    log.auditTrail.push({
+    const addendum = { fecha: now, contenido, usuario: user.name };
+    const auditEntry: AuditEntry = {
       accion: 'addendum',
       usuario: user.id,
       usuarioNombre: user.name,
       fecha: now,
       detalle: `Addendum agregado: ${contenido.substring(0, 50)}...`,
-    });
+    };
 
-    return NextResponse.json(log);
+    const updated = await db.patientLogs.addAddendum(logId, addendum, auditEntry);
+    return NextResponse.json(updated);
   } catch {
     return NextResponse.json({ error: 'Error al agregar addendum' }, { status: 500 });
   }

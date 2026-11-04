@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
   const patientId = searchParams.get('patientId');
   if (!patientId) return NextResponse.json({ error: 'ID de paciente requerido' }, { status: 400 });
 
-  const hc = db.historiasClinicas.find(h => h.patientId === patientId);
+  const hc = await db.historiasClinicas.findByPatientId(patientId);
   if (!hc) return NextResponse.json(null);
 
   if (user.role === 'doctor' && hc.doctorId !== user.id) {
@@ -53,10 +53,10 @@ export async function POST(request: NextRequest) {
     if (!body.fichaIdentificacion?.nombre) return NextResponse.json({ error: 'Ficha de identificación requerida (NOM-004 6.1.1)' }, { status: 400 });
     if (!body.padecimientoActual) return NextResponse.json({ error: 'Padecimiento actual requerido (NOM-004 6.1.5)' }, { status: 400 });
 
-    const existing = db.historiasClinicas.find(h => h.patientId === body.patientId);
+    const existing = await db.historiasClinicas.findByPatientId(body.patientId);
     if (existing) return NextResponse.json({ error: 'El paciente ya tiene historia clínica. Use PATCH para actualizarla.' }, { status: 409 });
 
-    const doctor = db.doctors.find(d => d.id === user.id);
+    const doctor = await db.doctors.findById(user.id);
     const now = new Date().toISOString();
     const id = `hc-${uuidv4()}`;
 
@@ -94,9 +94,8 @@ export async function POST(request: NextRequest) {
       bloqueado: true,
     };
 
-    db.historiasClinicas.push(hc);
+    await db.historiasClinicas.create(hc);
 
-    // Auto-create prescription from indicaciones iniciales
     if (hc.indicacionesIniciales && hc.indicacionesIniciales.length > 0) {
       const diagText = hc.diagnosticos.map((d: { codigo: string; descripcion: string }) => `${d.codigo} - ${d.descripcion}`).join('; ');
       const prescription: Prescription = {
@@ -114,7 +113,7 @@ export async function POST(request: NextRequest) {
         diagnosis: diagText || 'Ver historia clínica',
         notes: `Generada automáticamente desde historia clínica ${hc.id}`,
       };
-      db.prescriptions.push(prescription);
+      await db.prescriptions.create(prescription);
     }
 
     return NextResponse.json(hc, { status: 201 });
@@ -134,7 +133,7 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: 'patientId, seccion y datos son requeridos' }, { status: 400 });
     }
 
-    const hc = db.historiasClinicas.find(h => h.patientId === patientId && h.doctorId === user.id);
+    const hc = await db.historiasClinicas.findByPatientAndDoctor(patientId, user.id);
     if (!hc) return NextResponse.json({ error: 'Historia clínica no encontrada' }, { status: 404 });
 
     const allowed = [
@@ -146,22 +145,30 @@ export async function PATCH(request: NextRequest) {
     if (!allowed.includes(seccion)) return NextResponse.json({ error: 'Sección no válida' }, { status: 400 });
 
     const now = new Date().toISOString();
-
     const record = hc as unknown as Record<string, unknown>;
+
+    let newValue: unknown;
     if (typeof datos === 'string' || Array.isArray(datos)) {
-      record[seccion] = datos;
+      newValue = datos;
     } else {
-      record[seccion] = { ...record[seccion] as object, ...datos };
+      newValue = { ...record[seccion] as object, ...datos };
     }
 
-    hc.fechaActualizacion = now;
     hc.auditTrail.push({
       accion: 'addendum', usuario: user.id, usuarioNombre: user.name,
       fecha: now, detalle: `Actualización: ${seccion}`,
     });
     hc.firmaDigital = generarFirma(hc);
 
-    return NextResponse.json(hc);
+    const updates: Partial<HistoriaClinica> = {
+      [seccion]: newValue,
+      fechaActualizacion: now,
+      auditTrail: hc.auditTrail,
+      firmaDigital: hc.firmaDigital,
+    } as unknown as Partial<HistoriaClinica>;
+
+    const updated = await db.historiasClinicas.update(patientId, updates);
+    return NextResponse.json(updated);
   } catch {
     return NextResponse.json({ error: 'Error al actualizar historia clínica' }, { status: 500 });
   }

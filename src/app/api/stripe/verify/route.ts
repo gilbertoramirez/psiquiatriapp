@@ -11,7 +11,6 @@ function getToken(request: NextRequest) {
   return verifyToken(auth.substring(7));
 }
 
-// Verify a completed Stripe session and mark appointment as paid
 export async function POST(request: NextRequest) {
   const user = getToken(request);
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
@@ -23,14 +22,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Datos incompletos' }, { status: 400 });
     }
 
-    // Retrieve the session from Stripe to verify payment
     const session = await getStripe().checkout.sessions.retrieve(sessionId);
 
     if (session.payment_status === 'paid') {
-      const appointment = db.appointments.find(a => a.id === appointmentId);
+      const appointment = await db.appointments.findById(appointmentId);
       if (appointment && appointment.paymentStatus !== 'paid') {
-        appointment.paymentStatus = 'paid';
-        appointment.status = 'confirmed';
+        await db.appointments.update(appointmentId, { paymentStatus: 'paid', status: 'confirmed' });
 
         const payment: Payment = {
           id: `pay-${uuidv4()}`,
@@ -43,7 +40,7 @@ export async function POST(request: NextRequest) {
           reference: `STRIPE-${session.id}`,
         };
 
-        db.payments.push(payment);
+        await db.payments.create(payment);
       }
       return NextResponse.json({ success: true, status: 'paid' });
     }

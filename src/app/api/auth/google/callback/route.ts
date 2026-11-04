@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { v4 as uuidv4 } from 'uuid';
-import { generateToken, hashPassword, getPasswordStore } from '@/lib/auth';
+import { generateToken, hashPassword } from '@/lib/auth';
 import db from '@/lib/db';
 import { Patient } from '@/types';
 
@@ -17,7 +17,6 @@ export async function GET(request: NextRequest) {
     const clientSecret = process.env.GOOGLE_CLIENT_SECRET || '';
     const redirectUri = `${new URL(request.url).origin}/api/auth/google/callback`;
 
-    // Exchange code for tokens
     const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -31,25 +30,21 @@ export async function GET(request: NextRequest) {
     });
 
     const tokens = await tokenResponse.json();
-
     if (!tokens.access_token) {
       return NextResponse.redirect(new URL('/?error=google_token_failed', request.url));
     }
 
-    // Get user info from Google
     const userInfoResponse = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
       headers: { Authorization: `Bearer ${tokens.access_token}` },
     });
 
     const googleUser = await userInfoResponse.json();
-
     if (!googleUser.email) {
       return NextResponse.redirect(new URL('/?error=google_email_missing', request.url));
     }
 
-    // Check if user already exists
-    let existingPatient = db.patients.find(p => p.email === googleUser.email);
-    const existingDoctor = db.doctors.find(d => d.email === googleUser.email);
+    const existingPatient = await db.patients.findByEmail(googleUser.email);
+    const existingDoctor = await db.doctors.findByEmail(googleUser.email);
 
     let user;
     if (existingDoctor) {
@@ -57,11 +52,9 @@ export async function GET(request: NextRequest) {
     } else if (existingPatient) {
       user = existingPatient;
     } else {
-      // Create new patient from Google account
       const id = `pat-${uuidv4()}`;
       const randomPassword = uuidv4();
       const hashedPassword = await hashPassword(randomPassword);
-      getPasswordStore().set(id, hashedPassword);
 
       const newPatient: Patient = {
         id,
@@ -71,14 +64,14 @@ export async function GET(request: NextRequest) {
         createdAt: new Date().toISOString(),
       };
 
-      db.patients.push(newPatient);
+      await db.patients.create(newPatient);
+      await db.passwords.set(id, hashedPassword);
       user = newPatient;
     }
 
     const token = generateToken(user);
     const userData = JSON.stringify({ id: user.id, name: user.name, email: user.email, role: user.role });
 
-    // Redirect with token in URL (client will pick it up)
     const redirectUrl = new URL(
       user.role === 'doctor' ? '/doctor/dashboard' : '/paciente/citas',
       request.url

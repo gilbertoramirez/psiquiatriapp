@@ -10,33 +10,21 @@ function getToken(request: NextRequest) {
   return verifyToken(auth.substring(7));
 }
 
-// GET - list all published posts or single post by id
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const postId = searchParams.get('id');
 
   if (postId) {
-    const post = db.blogPosts.find(p => p.id === postId);
+    const post = await db.blogPosts.findById(postId);
     if (!post) return NextResponse.json({ error: 'Post no encontrado' }, { status: 404 });
     return NextResponse.json(post);
   }
 
-  // Check if user is authenticated to show drafts for doctors
   const user = getToken(request);
-  let posts: BlogPost[];
-
-  if (user?.role === 'doctor') {
-    // Doctors see all their posts (including drafts) + published posts from others
-    posts = db.blogPosts.filter(p => p.doctorId === user.id || p.published);
-  } else {
-    // Everyone else sees only published posts
-    posts = db.blogPosts.filter(p => p.published);
-  }
-
+  const posts = await db.blogPosts.findAll(user?.role === 'doctor' ? user.id : undefined);
   return NextResponse.json(posts.sort((a, b) => b.publishedAt.localeCompare(a.publishedAt)));
 }
 
-// POST - create a new blog post (doctors only)
 export async function POST(request: NextRequest) {
   const user = getToken(request);
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
@@ -64,14 +52,13 @@ export async function POST(request: NextRequest) {
       comments: [],
     };
 
-    db.blogPosts.push(post);
+    await db.blogPosts.create(post);
     return NextResponse.json(post, { status: 201 });
   } catch {
     return NextResponse.json({ error: 'Error al crear publicación' }, { status: 500 });
   }
 }
 
-// PATCH - add a comment to a post (both doctors and patients)
 export async function PATCH(request: NextRequest) {
   const user = getToken(request);
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
@@ -83,9 +70,6 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: 'Datos incompletos' }, { status: 400 });
     }
 
-    const post = db.blogPosts.find(p => p.id === postId);
-    if (!post) return NextResponse.json({ error: 'Post no encontrado' }, { status: 404 });
-
     const comment: BlogComment = {
       id: `com-${uuidv4()}`,
       postId,
@@ -96,7 +80,9 @@ export async function PATCH(request: NextRequest) {
       createdAt: new Date().toISOString(),
     };
 
-    post.comments.push(comment);
+    const updated = await db.blogPosts.addComment(postId, comment);
+    if (!updated) return NextResponse.json({ error: 'Post no encontrado' }, { status: 404 });
+
     return NextResponse.json(comment, { status: 201 });
   } catch {
     return NextResponse.json({ error: 'Error al agregar comentario' }, { status: 500 });

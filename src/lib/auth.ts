@@ -1,5 +1,5 @@
 import jwt from 'jsonwebtoken';
-import bcrypt, { hashSync } from 'bcryptjs';
+import bcrypt from 'bcryptjs';
 import { User } from '@/types';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'psiquiatriapp-secret-key-change-in-production';
@@ -26,22 +26,4 @@ export function verifyToken(token: string): { id: string; email: string; role: s
   } catch {
     return null;
   }
-}
-
-// Password storage (in production use a real DB)
-// Uses globalThis to persist across Next.js hot reloads
-const globalForAuth = globalThis as unknown as { __psiquiatriapp_passwords?: Map<string, string> };
-
-if (!globalForAuth.__psiquiatriapp_passwords) {
-  const hash = hashSync('doctor123', 10);
-  globalForAuth.__psiquiatriapp_passwords = new Map([
-    ['doc-1', hash],
-    ['doc-2', hash],
-  ]);
-}
-
-const passwords = globalForAuth.__psiquiatriapp_passwords;
-
-export function getPasswordStore() {
-  return passwords;
 }

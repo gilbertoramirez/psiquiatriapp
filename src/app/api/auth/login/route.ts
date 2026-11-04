@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyPassword, generateToken, getPasswordStore } from '@/lib/auth';
+import { verifyPassword, generateToken } from '@/lib/auth';
 import db from '@/lib/db';
 
 export async function POST(request: NextRequest) {
@@ -10,16 +10,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Email y contraseña son requeridos' }, { status: 400 });
     }
 
-    // Search in both patients and doctors
-    const patient = db.patients.find(p => p.email === email);
-    const doctor = db.doctors.find(d => d.email === email);
+    const patient = await db.patients.findByEmail(email);
+    const doctor = await db.doctors.findByEmail(email);
     const user = patient || doctor;
 
     if (!user) {
       return NextResponse.json({ error: 'Credenciales inválidas' }, { status: 401 });
     }
 
-    const storedHash = getPasswordStore().get(user.id);
+    const storedHash = await db.passwords.get(user.id);
     if (!storedHash) {
       return NextResponse.json({ error: 'Credenciales inválidas' }, { status: 401 });
     }

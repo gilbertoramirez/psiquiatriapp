@@ -16,17 +16,18 @@ export async function GET(request: NextRequest) {
 
   let prescriptions: Prescription[];
   if (user.role === 'doctor') {
-    prescriptions = db.prescriptions.filter(p => p.doctorId === user.id);
+    prescriptions = await db.prescriptions.findByDoctorId(user.id);
   } else {
-    prescriptions = db.prescriptions.filter(p => p.patientId === user.id);
+    prescriptions = await db.prescriptions.findByPatientId(user.id);
   }
 
-  prescriptions = prescriptions.map(p => ({
-    ...p,
-    doctorName: db.doctors.find(d => d.id === p.doctorId)?.name || 'Doctor',
-  }));
+  const doctors = await db.doctors.findAll();
+  const doctorMap = new Map(doctors.map(d => [d.id, d.name]));
 
-  return NextResponse.json(prescriptions);
+  return NextResponse.json(prescriptions.map(p => ({
+    ...p,
+    doctorName: doctorMap.get(p.doctorId) || 'Doctor',
+  })));
 }
 
 export async function POST(request: NextRequest) {
@@ -52,7 +53,7 @@ export async function POST(request: NextRequest) {
       notes,
     };
 
-    db.prescriptions.push(prescription);
+    await db.prescriptions.create(prescription);
     return NextResponse.json(prescription, { status: 201 });
   } catch {
     return NextResponse.json({ error: 'Error al crear receta' }, { status: 500 });

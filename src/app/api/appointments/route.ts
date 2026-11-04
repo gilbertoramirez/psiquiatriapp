@@ -22,13 +22,12 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const type = searchParams.get('type');
 
-  // Return available time slots for a given date
   if (type === 'slots') {
     const date = searchParams.get('date');
     const doctorId = searchParams.get('doctorId') || (user.role === 'doctor' ? user.id : 'doc-1');
     if (!date) return NextResponse.json({ error: 'Fecha requerida' }, { status: 400 });
 
-    const doctor = db.doctors.find(d => d.id === doctorId);
+    const doctor = await db.doctors.findById(doctorId);
     if (!doctor) return NextResponse.json({ error: 'Doctor no encontrado' }, { status: 404 });
 
     const appointmentDate = new Date(date + 'T12:00:00');
@@ -36,13 +35,10 @@ export async function GET(request: NextRequest) {
     const dayName = dayNames[dayOfWeek];
     const availableSlots = doctor.availableHours[dayName];
 
-    if (!availableSlots || availableSlots.length === 0) {
-      return NextResponse.json([]);
-    }
+    if (!availableSlots || availableSlots.length === 0) return NextResponse.json([]);
 
-    const bookedTimes = db.appointments
-      .filter(a => a.doctorId === doctorId && a.date === date && a.status !== 'cancelled')
-      .map(a => a.startTime);
+    const booked = await db.appointments.findByDoctorAndDate(doctorId, date);
+    const bookedTimes = booked.map(a => a.startTime);
 
     const slots: { time: string; available: boolean }[] = [];
     availableSlots.forEach(slot => {
@@ -62,19 +58,24 @@ export async function GET(request: NextRequest) {
 
   let appointments: Appointment[];
   if (user.role === 'doctor') {
-    appointments = db.appointments.filter(a => a.doctorId === user.id);
+    appointments = await db.appointments.findByDoctorId(user.id);
   } else {
-    appointments = db.appointments.filter(a => a.patientId === user.id);
+    appointments = await db.appointments.findByPatientId(user.id);
   }
 
-  // Enrich with names
-  appointments = appointments.map(a => ({
-    ...a,
-    patientName: db.patients.find(p => p.id === a.patientId)?.name || 'Paciente',
-    doctorName: db.doctors.find(d => d.id === a.doctorId)?.name || 'Doctor',
+  const doctors = await db.doctors.findAll();
+  const doctorMap = new Map(doctors.map(d => [d.id, d.name]));
+
+  const enriched = await Promise.all(appointments.map(async a => {
+    const patient = await db.patients.findById(a.patientId);
+    return {
+      ...a,
+      patientName: patient?.name || 'Paciente',
+      doctorName: doctorMap.get(a.doctorId) || 'Doctor',
+    };
   }));
 
-  return NextResponse.json(appointments);
+  return NextResponse.json(enriched);
 }
 
 export async function POST(request: NextRequest) {
@@ -88,15 +89,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Datos incompletos' }, { status: 400 });
     }
 
-    // Doctor can pass 'self' to use their own id
     const resolvedDoctorId = (rawDoctorId === 'self' || !rawDoctorId) && user.role === 'doctor' ? user.id : rawDoctorId;
 
-    const doctor = db.doctors.find(d => d.id === resolvedDoctorId);
+    const doctor = await db.doctors.findById(resolvedDoctorId);
     if (!doctor) return NextResponse.json({ error: 'Doctor no encontrado' }, { status: 404 });
 
-    // Doctors can also schedule past appointments (e.g. logging)
+    const appointmentDate = new Date(date + 'T12:00:00');
+
     if (user.role !== 'doctor') {
-      const appointmentDate = new Date(date + 'T00:00:00');
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       if (appointmentDate < today) {
@@ -104,8 +104,6 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Validate the time is within available hours
-    const appointmentDate = new Date(date + 'T12:00:00');
     const dayOfWeek = appointmentDate.getDay();
     const dayName = dayNames[dayOfWeek];
     const availableSlots = doctor.availableHours[dayName];
@@ -128,25 +126,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Horario no disponible' }, { status: 400 });
     }
 
-    // Check for conflicts
-    const endTime = `${String(Math.floor((startMinutes + 60) / 60)).padStart(2, '0')}:${String((startMinutes + 60) % 60).padStart(2, '0')}`;
-    const conflict = db.appointments.find(
-      a => a.doctorId === resolvedDoctorId && a.date === date && a.startTime === startTime && a.status !== 'cancelled'
-    );
-
+    const conflict = await db.appointments.findConflict(resolvedDoctorId, date, startTime);
     if (conflict) {
       return NextResponse.json({ error: 'Este horario ya está ocupado' }, { status: 409 });
     }
 
-    // If doctor passes a free-text patient name, create a minimal patient record
+    const endTime = `${String(Math.floor((startMinutes + 60) / 60)).padStart(2, '0')}:${String((startMinutes + 60) % 60).padStart(2, '0')}`;
+
     let finalPatientId = user.role === 'doctor' ? patientId : user.id;
     let patientNameResolved: string | undefined;
 
     if (user.role === 'doctor' && (!patientId || patientId === '') && patientNameFree) {
-      const { v4: uuid2 } = await import('uuid');
-      const tempId = `patient-temp-${uuid2()}`;
+      const tempId = `patient-temp-${uuidv4()}`;
       const now2 = new Date().toISOString();
-      db.patients.push({
+      await db.patients.create({
         id: tempId,
         email: `sin-cuenta-${tempId}@interno`,
         name: patientNameFree.trim(),
@@ -174,9 +167,10 @@ export async function POST(request: NextRequest) {
       notes: notes || undefined,
     };
 
-    db.appointments.push(appointment);
+    await db.appointments.create(appointment);
 
-    const patientName = patientNameResolved || db.patients.find(p => p.id === finalPatientId)?.name || 'Paciente';
+    const patient = await db.patients.findById(finalPatientId);
+    const patientName = patientNameResolved || patient?.name || 'Paciente';
 
     return NextResponse.json({
       ...appointment,

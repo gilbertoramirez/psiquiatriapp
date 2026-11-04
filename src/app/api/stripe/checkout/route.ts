@@ -15,12 +15,11 @@ export async function POST(request: NextRequest) {
 
   try {
     const { appointmentId } = await request.json();
-
     if (!appointmentId) {
       return NextResponse.json({ error: 'ID de cita requerido' }, { status: 400 });
     }
 
-    const appointment = db.appointments.find(a => a.id === appointmentId);
+    const appointment = await db.appointments.findById(appointmentId);
     if (!appointment) {
       return NextResponse.json({ error: 'Cita no encontrada' }, { status: 404 });
     }
@@ -29,10 +28,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Esta cita ya fue pagada' }, { status: 409 });
     }
 
-    const doctor = db.doctors.find(d => d.id === appointment.doctorId);
+    const doctor = await db.doctors.findById(appointment.doctorId);
     const origin = request.headers.get('origin') || 'http://localhost:3000';
 
-    // Create Stripe Checkout Session
     const session = await getStripe().checkout.sessions.create({
       payment_method_types: ['card'],
       line_items: [
@@ -43,7 +41,7 @@ export async function POST(request: NextRequest) {
               name: `Consulta Psiquiátrica - ${doctor?.name || 'Doctor'}`,
               description: `Cita: ${appointment.date} a las ${appointment.startTime} hrs`,
             },
-            unit_amount: appointment.amount * 100, // Stripe uses cents
+            unit_amount: appointment.amount * 100,
           },
           quantity: 1,
         },
@@ -52,18 +50,12 @@ export async function POST(request: NextRequest) {
       success_url: `${origin}/paciente/pagos?success=true&session_id={CHECKOUT_SESSION_ID}&appointment_id=${appointmentId}`,
       cancel_url: `${origin}/paciente/pagos?cancelled=true`,
       customer_email: user.email,
-      metadata: {
-        appointmentId,
-        patientId: user.id,
-      },
+      metadata: { appointmentId, patientId: user.id },
     });
 
     return NextResponse.json({ sessionId: session.id, url: session.url });
   } catch (err) {
     console.error('Stripe checkout error:', err);
-    return NextResponse.json(
-      { error: 'Error al crear sesión de pago' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Error al crear sesión de pago' }, { status: 500 });
   }
 }
