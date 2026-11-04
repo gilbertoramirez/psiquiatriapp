@@ -16,7 +16,8 @@ export async function GET(request: NextRequest) {
   try {
     const doctors = await sql`SELECT id, email, name, role FROM users WHERE role = 'doctor'`;
     const passwords = await sql`SELECT user_id, LEFT(hash, 7) as hash_prefix FROM user_passwords`;
-    return NextResponse.json({ db: true, doctors, passwords });
+    const patients = await sql`SELECT id, name, email, creado_por_doctor, sin_cuenta_digital, doctor_id FROM users WHERE role = 'patient'`;
+    return NextResponse.json({ db: true, doctors, passwords, patients });
   } catch (err) {
     return NextResponse.json({ error: String(err) }, { status: 500 });
   }

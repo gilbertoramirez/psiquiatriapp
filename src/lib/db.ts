@@ -229,6 +229,9 @@ function pgDb(sql: Sql) {
         if (f.emergencyPhone !== undefined) { sets.push(`emergency_phone = $${i++}`); vals.push(f.emergencyPhone ?? null); }
         if (f.curp !== undefined) { sets.push(`curp = $${i++}`); vals.push(f.curp ?? null); }
         if (f.notas !== undefined) { sets.push(`notas = $${i++}`); vals.push(f.notas ?? null); }
+        if (f.creadoPorDoctor !== undefined) { sets.push(`creado_por_doctor = $${i++}`); vals.push(f.creadoPorDoctor); }
+        if (f.sinCuentaDigital !== undefined) { sets.push(`sin_cuenta_digital = $${i++}`); vals.push(f.sinCuentaDigital); }
+        if (f.doctorId !== undefined) { sets.push(`doctor_id = $${i++}`); vals.push(f.doctorId ?? null); }
         if (sets.length === 0) return;
         vals.push(id);
         await sql.query(`UPDATE users SET ${sets.join(', ')} WHERE id = $${i}`, vals);

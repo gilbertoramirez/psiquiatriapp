@@ -90,6 +90,13 @@ export async function PATCH(request: NextRequest) {
       if (!realPatient.curp && tempPatient.curp) updates.curp = tempPatient.curp;
       if (Object.keys(updates).length > 0) await db.patients.update(realPatient.id, updates);
 
+      // Mark real patient as managed by this doctor
+      await db.patients.update(realPatient.id, {
+        creadoPorDoctor: true,
+        doctorId: user.id,
+        sinCuentaDigital: false,
+      } as Partial<Patient>);
+
       // Migrate all records and delete temp
       await db.patients.migrateId(tempPatient.id, realPatient.id);
 
