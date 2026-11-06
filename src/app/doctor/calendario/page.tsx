@@ -393,10 +393,19 @@ export default function CalendarioPage() {
         </div>
         <div className="flex items-center gap-3">
           {selectedDate && (
-            <button onClick={openModal} className="flex items-center gap-2 px-4 py-2 bg-salmon-400 text-white rounded-lg hover:bg-salmon-500 text-sm font-medium">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
-              Nueva Cita
-            </button>
+            <>
+              <button
+                onClick={() => window.open(`https://outlook.office.com/book/ConsultaZUNO@alesca.com.mx/?selectedDate=${selectedDate}`, '_blank', 'noopener,noreferrer')}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                Agendar en Bookings
+              </button>
+              <button onClick={openModal} className="flex items-center gap-2 px-4 py-2 bg-salmon-400 text-white rounded-lg hover:bg-salmon-500 text-sm font-medium">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+                Nueva Cita
+              </button>
+            </>
           )}
           <div className="flex gap-2 bg-gray-100 rounded-lg p-1">
             <button onClick={() => setView('month')} className={`px-4 py-1.5 rounded-md text-sm font-medium ${view === 'month' ? 'bg-white shadow-sm' : 'text-gray-500'}`}>Mes</button>
