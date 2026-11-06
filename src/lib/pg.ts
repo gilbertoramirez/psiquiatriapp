@@ -166,4 +166,12 @@ CREATE TABLE IF NOT EXISTS blog_posts (
   comments JSONB DEFAULT '[]',
   created_at TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS google_calendar_tokens (
+  user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+  access_token TEXT,
+  refresh_token TEXT NOT NULL,
+  expiry_date BIGINT,
+  updated_at TEXT NOT NULL
+);
 `;

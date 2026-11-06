@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { verifyToken } from '@/lib/auth';
 import db from '@/lib/db';
 import { Appointment } from '@/types';
+import { createEvent, hasCalendarConnected } from '@/lib/google-calendar';
 
 function getToken(request: NextRequest) {
   const auth = request.headers.get('authorization');
@@ -171,6 +172,20 @@ export async function POST(request: NextRequest) {
 
     const patient = await db.patients.findById(finalPatientId);
     const patientName = patientNameResolved || patient?.name || 'Paciente';
+
+    // Sync to Google Calendar if connected
+    try {
+      const gcalConnected = await hasCalendarConnected(resolvedDoctorId);
+      if (gcalConnected) {
+        const typeLabel = type === 'initial' ? 'Primera consulta' : type === 'urgency' ? 'Urgencia' : 'Seguimiento';
+        await createEvent(resolvedDoctorId, {
+          summary: `${typeLabel} - ${patientName}`,
+          description: notes || undefined,
+          startDateTime: `${date}T${startTime}`,
+          endDateTime: `${date}T${endTime}`,
+        });
+      }
+    } catch { /* non-fatal */ }
 
     return NextResponse.json({
       ...appointment,
