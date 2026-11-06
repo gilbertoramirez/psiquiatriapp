@@ -38,6 +38,7 @@ function SectionHeader({ num, title, collapsed, onToggle, readonly }: {
 
 export default function ExpedientePage() {
   const [patientList, setPatientList] = useState<Patient[]>([]);
+  const [patientSearch, setPatientSearch] = useState('');
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   const [hc, setHc] = useState<HistoriaClinica | null>(null);
   const [isNew, setIsNew] = useState(false);
@@ -183,26 +184,42 @@ export default function ExpedientePage() {
         {/* Patient list */}
         <div className="card h-fit">
           <h2 className="font-semibold mb-3 text-sm text-gray-500 uppercase tracking-wide">Pacientes</h2>
+          {patientList.length > 0 && (
+            <input
+              type="text"
+              value={patientSearch}
+              onChange={e => setPatientSearch(e.target.value)}
+              placeholder="Buscar paciente..."
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-salmon-400 mb-3"
+            />
+          )}
           {patientList.length === 0 ? (
             <p className="text-gray-400 text-sm text-center py-8">Los pacientes aparecerán una vez agenden cita.</p>
-          ) : (
-            <div className="space-y-1">
-              {patientList.map(p => (
-                <button key={p.id} onClick={() => { setSelectedPatient(p); setMessage({ type: '', text: '' }); }}
-                  className={`w-full flex items-center gap-3 p-2.5 rounded-lg text-left transition-colors ${selectedPatient?.id === p.id ? 'bg-salmon-50 ring-1 ring-salmon-200' : 'hover:bg-gray-50'}`}>
-                  <div className="w-8 h-8 bg-salmon-100 rounded-full flex items-center justify-center text-salmon-700 font-bold text-xs flex-shrink-0">
-                    {p.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
-                  </div>
-                  <div className="min-w-0">
-                    <p className="font-medium text-sm text-gray-900 truncate">{p.name}</p>
-                    <p className="text-xs text-gray-400 truncate">
-                      {p.email && !p.email.includes('@interno') ? p.email : 'Sin cuenta digital'}
-                    </p>
-                  </div>
-                </button>
-              ))}
-            </div>
-          )}
+          ) : (() => {
+            const filteredPatients = patientList.filter(p =>
+              p.name.toLowerCase().includes(patientSearch.toLowerCase())
+            );
+            return filteredPatients.length === 0 ? (
+              <p className="text-gray-400 text-sm text-center py-4">Sin resultados</p>
+            ) : (
+              <div className="space-y-1">
+                {filteredPatients.map(p => (
+                  <button key={p.id} onClick={() => { setSelectedPatient(p); setMessage({ type: '', text: '' }); }}
+                    className={`w-full flex items-center gap-3 p-2.5 rounded-lg text-left transition-colors ${selectedPatient?.id === p.id ? 'bg-salmon-50 ring-1 ring-salmon-200' : 'hover:bg-gray-50'}`}>
+                    <div className="w-8 h-8 bg-salmon-100 rounded-full flex items-center justify-center text-salmon-700 font-bold text-xs flex-shrink-0">
+                      {p.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="font-medium text-sm text-gray-900 truncate">{p.name}</p>
+                      <p className="text-xs text-gray-400 truncate">
+                        {p.email && !p.email.includes('@interno') ? p.email : 'Sin cuenta digital'}
+                      </p>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            );
+          })()}
         </div>
 
         {/* Main content */}

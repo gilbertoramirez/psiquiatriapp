@@ -72,9 +72,33 @@ function NewAppointmentModal({
   saving: boolean; error: string; form: NewApptForm;
   onChange: (f: NewApptForm) => void; onSubmit: (e: React.FormEvent) => void; onClose: () => void;
 }) {
+  const [patientQuery, setPatientQuery] = useState('');
+  const [showSuggestions, setShowSuggestions] = useState(false);
+
   const fieldCls = "w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-salmon-400";
   const labelCls = "block text-xs font-medium text-gray-600 mb-1";
   const displayDate = new Date(date + 'T12:00:00').toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long' });
+
+  const fuzzyPatients = patients.filter(p =>
+    p.name.toLowerCase().split('').reduce((acc, ch, i) => {
+      if (acc.idx < patientQuery.length && p.name.toLowerCase()[i] === patientQuery.toLowerCase()[acc.idx])
+        return { idx: acc.idx + 1, ok: true };
+      return acc;
+    }, { idx: 0, ok: false }).idx === patientQuery.length && patientQuery.length > 0
+  );
+  const suggestions = patientQuery.length > 0 ? fuzzyPatients : patients;
+
+  function selectPatient(p: Patient) {
+    onChange({ ...form, patientId: p.id, patientNameFree: '' });
+    setPatientQuery(p.name);
+    setShowSuggestions(false);
+  }
+
+  function clearPatient() {
+    onChange({ ...form, patientId: '', patientNameFree: '' });
+    setPatientQuery('');
+    setShowSuggestions(false);
+  }
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
@@ -90,25 +114,44 @@ function NewAppointmentModal({
         </div>
 
         <form onSubmit={onSubmit} className="p-5 space-y-4">
-          <div>
+          <div className="relative">
             <label className={labelCls}>Paciente <span className="text-red-500">*</span></label>
-            {patients.length > 0 ? (
-              <select className={fieldCls} value={form.patientId} onChange={e => onChange({ ...form, patientId: e.target.value, patientNameFree: '' })}>
-                <option value="">-- Seleccionar paciente --</option>
-                {patients.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                <option value="__free__">Otro (escribir nombre)</option>
-              </select>
-            ) : (
-              <select className={fieldCls} value="__free__" disabled>
-                <option value="__free__">Escribir nombre manualmente</option>
-              </select>
+            <div className="relative">
+              <input
+                className={fieldCls}
+                value={patientQuery}
+                onChange={e => { setPatientQuery(e.target.value); setShowSuggestions(true); onChange({ ...form, patientId: '', patientNameFree: e.target.value }); }}
+                onFocus={() => setShowSuggestions(true)}
+                onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
+                placeholder="Buscar paciente por nombre..."
+                autoComplete="off"
+              />
+              {patientQuery && (
+                <button type="button" onClick={clearPatient} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+              )}
+            </div>
+            {showSuggestions && suggestions.length > 0 && (
+              <div className="absolute z-10 w-full bg-white border border-gray-200 rounded-lg shadow-lg mt-1 max-h-48 overflow-y-auto">
+                {suggestions.slice(0, 8).map(p => (
+                  <button key={p.id} type="button" onMouseDown={() => selectPatient(p)}
+                    className="w-full text-left px-3 py-2 hover:bg-salmon-50 text-sm flex items-center gap-2">
+                    <div className="w-6 h-6 bg-salmon-100 rounded-full flex items-center justify-center text-salmon-700 text-[10px] font-bold flex-shrink-0">
+                      {p.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                    </div>
+                    {p.name}
+                  </button>
+                ))}
+              </div>
             )}
+            {form.patientId && <p className="text-xs text-green-600 mt-1">✓ Paciente seleccionado</p>}
           </div>
 
-          {(form.patientId === '__free__' || patients.length === 0) && (
+          {!form.patientId && patientQuery && (
             <div>
-              <label className={labelCls}>Nombre del paciente <span className="text-red-500">*</span></label>
-              <input className={fieldCls} value={form.patientNameFree} onChange={e => onChange({ ...form, patientNameFree: e.target.value })} placeholder="Nombre completo" />
+              <label className={labelCls}>Nombre del paciente (nuevo) <span className="text-red-500">*</span></label>
+              <p className="text-xs text-gray-400 -mt-0.5">Se registrará como paciente nuevo</p>
             </div>
           )}
 
@@ -205,6 +248,7 @@ export default function CalendarioPage() {
   const [formError, setFormError] = useState('');
   const [success, setSuccess] = useState('');
   const [gcalNotice, setGcalNotice] = useState('');
+  const [deletingEventId, setDeletingEventId] = useState<string | null>(null);
 
   const loadAppointments = useCallback(async () => {
     try { setAllAppointments(await appointmentsApi.list()); } catch { /* ignore */ }
@@ -273,16 +317,15 @@ export default function CalendarioPage() {
     e.preventDefault();
     if (!selectedDate) return;
 
-    const needsFreePatient = form.patientId === '__free__' || patients.length === 0;
-    if (needsFreePatient && !form.patientNameFree.trim()) { setFormError('Ingresa el nombre del paciente'); return; }
-    if (!needsFreePatient && !form.patientId) { setFormError('Selecciona un paciente'); return; }
+    const hasFreeText = !form.patientId && form.patientNameFree.trim();
+    if (!form.patientId && !hasFreeText) { setFormError('Selecciona o escribe el nombre del paciente'); return; }
     if (!form.time) { setFormError('Selecciona una hora'); return; }
 
     setSaving(true);
     setFormError('');
     try {
       const payload: Record<string, string> = { date: selectedDate, startTime: form.time, type: form.type, notes: form.notes, doctorId: 'self' };
-      if (needsFreePatient) { payload.patientNameFree = form.patientNameFree.trim(); payload.patientId = ''; }
+      if (hasFreeText) { payload.patientNameFree = form.patientNameFree.trim(); payload.patientId = ''; }
       else payload.patientId = form.patientId;
       if (form.patientEmail.trim()) payload.patientEmail = form.patientEmail.trim();
 
@@ -296,6 +339,31 @@ export default function CalendarioPage() {
       setFormError(err instanceof Error ? err.message : 'Error al agendar');
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleDeleteEvent(eventId: string) {
+    if (!confirm('¿Eliminar este evento de Google Calendar?')) return;
+    setDeletingEventId(eventId);
+    try {
+      const token = getToken();
+      const res = await fetch(`/api/google-calendar?eventId=${encodeURIComponent(eventId)}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token || ''}` },
+      });
+      if (res.ok) {
+        await loadGcal();
+        setSuccess('Evento eliminado de Google Calendar');
+        setTimeout(() => setSuccess(''), 3000);
+      } else {
+        setGcalNotice('Error al eliminar el evento');
+        setTimeout(() => setGcalNotice(''), 3000);
+      }
+    } catch {
+      setGcalNotice('Error al eliminar el evento');
+      setTimeout(() => setGcalNotice(''), 3000);
+    } finally {
+      setDeletingEventId(null);
     }
   }
 
@@ -511,7 +579,20 @@ export default function CalendarioPage() {
                       const endTime = getTimeFromISO(event.end);
                       return (
                         <div key={event.id} className="p-3 bg-blue-50 rounded-lg border border-blue-100">
-                          <p className="font-medium text-sm text-gray-800 truncate">{event.summary}</p>
+                          <div className="flex items-start justify-between gap-2">
+                            <p className="font-medium text-sm text-gray-800 truncate">{event.summary}</p>
+                            <button
+                              onClick={() => handleDeleteEvent(event.id)}
+                              disabled={deletingEventId === event.id}
+                              className="flex-shrink-0 p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors disabled:opacity-40"
+                              title="Eliminar evento"
+                            >
+                              {deletingEventId === event.id
+                                ? <div className="w-3.5 h-3.5 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
+                                : <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                              }
+                            </button>
+                          </div>
                           {(startTime || endTime) && (
                             <p className="text-xs text-gray-500 mt-0.5">{startTime}{endTime ? ` - ${endTime}` : ''}</p>
                           )}
