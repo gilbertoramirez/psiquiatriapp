@@ -443,10 +443,9 @@ export default function CalendarioPage() {
               {calendarDays.map((day, i) => {
                 if (!day) return <div key={`e-${i}`} />;
                 const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-                const { appAppts, gcalForDate } = getItemsForDate(dateStr);
+                const { gcalForDate } = getItemsForDate(dateStr);
                 const isSelected = selectedDate === dateStr;
                 const isToday = new Date().toISOString().split('T')[0] === dateStr;
-                const totalItems = appAppts.length + gcalForDate.length;
 
                 return (
                   <button key={day} onClick={() => setSelectedDate(dateStr)}
@@ -455,13 +454,10 @@ export default function CalendarioPage() {
                     }`}>
                     <span className={`text-sm ${isToday ? 'font-bold text-salmon-500' : 'text-gray-700'}`}>{day}</span>
                     <div className="mt-1 space-y-0.5">
-                      {appAppts.slice(0, 2).map(a => (
-                        <div key={a.id} className="w-full h-1.5 rounded-full bg-salmon-400"></div>
-                      ))}
-                      {gcalForDate.slice(0, 2).map(e => (
+                      {gcalForDate.slice(0, 3).map(e => (
                         <div key={e.id} className="w-full h-1.5 rounded-full bg-blue-400"></div>
                       ))}
-                      {totalItems > 2 && <p className="text-[10px] text-gray-400">+{totalItems - 2}</p>}
+                      {gcalForDate.length > 3 && <p className="text-[10px] text-gray-400">+{gcalForDate.length - 3}</p>}
                     </div>
                   </button>
                 );
@@ -469,7 +465,6 @@ export default function CalendarioPage() {
             </div>
 
             <div className="mt-4 flex gap-4 text-xs text-gray-500">
-              <div className="flex items-center gap-1.5"><div className="w-3 h-1.5 rounded-full bg-salmon-400"></div> Cita psiquiatriapp</div>
               <div className="flex items-center gap-1.5"><div className="w-3 h-1.5 rounded-full bg-blue-400"></div> Evento Google Calendar</div>
             </div>
           </div>
@@ -488,36 +483,21 @@ export default function CalendarioPage() {
                   </button>
                 </div>
 
-                {(!selectedItems || (selectedItems.appAppts.length === 0 && selectedItems.gcalForDate.length === 0)) ? (
+                {(!selectedItems || selectedItems.gcalForDate.length === 0) ? (
                   <div className="text-center py-8">
-                    <p className="text-gray-400 text-sm">Sin citas ni eventos este día</p>
+                    <p className="text-gray-400 text-sm">Sin eventos este día</p>
                     <button onClick={openModal} className="mt-3 text-xs text-salmon-500 hover:underline">+ Agendar cita</button>
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    {selectedItems?.appAppts.map(apt => (
-                      <div key={apt.id} className="p-3 bg-salmon-50 rounded-lg border border-salmon-100">
-                        <div className="flex items-center justify-between mb-1">
-                          <p className="font-medium text-sm text-gray-800">{apt.patientName}</p>
-                          <span className="text-[10px] text-salmon-600 font-medium">Psiquiatriapp</span>
-                        </div>
-                        <p className="text-xs text-gray-500">{apt.startTime} - {apt.endTime}</p>
-                        <p className="text-xs text-gray-400 capitalize mt-0.5">
-                          {apt.type === 'initial' ? 'Primera consulta' : apt.type === 'followup' ? 'Seguimiento' : 'Urgencia'}
-                        </p>
-                      </div>
-                    ))}
-                    {selectedItems?.gcalForDate.map(event => {
+                    {selectedItems.gcalForDate.map(event => {
                       const startTime = getTimeFromISO(event.start);
                       const endTime = getTimeFromISO(event.end);
                       return (
                         <div key={event.id} className="p-3 bg-blue-50 rounded-lg border border-blue-100">
-                          <div className="flex items-center justify-between mb-1">
-                            <p className="font-medium text-sm text-gray-800 truncate pr-2">{event.summary}</p>
-                            <span className="text-[10px] text-blue-600 font-medium flex-shrink-0">Google</span>
-                          </div>
+                          <p className="font-medium text-sm text-gray-800 truncate">{event.summary}</p>
                           {(startTime || endTime) && (
-                            <p className="text-xs text-gray-500">{startTime}{endTime ? ` - ${endTime}` : ''}</p>
+                            <p className="text-xs text-gray-500 mt-0.5">{startTime}{endTime ? ` - ${endTime}` : ''}</p>
                           )}
                           {event.htmlLink && (
                             <a href={event.htmlLink} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-500 hover:underline mt-1 inline-block">
@@ -561,30 +541,23 @@ export default function CalendarioPage() {
                 <div className="p-2 text-xs text-gray-400 flex items-start">{String(hour).padStart(2, '0')}:00</div>
                 {weekDays.map(d => {
                   const dateStr = d.toISOString().split('T')[0];
-                  const { appAppts, gcalForDate } = getItemsForDate(dateStr);
-                  const hourAppAppts = appAppts.filter(a => parseInt(a.startTime.split(':')[0]) === hour);
+                  const { gcalForDate } = getItemsForDate(dateStr);
                   const hourGcal = gcalForDate.filter(e => {
                     const t = getTimeFromISO(e.start);
                     return t ? parseInt(t.split(':')[0]) === hour : false;
                   });
                   return (
-                    <div key={`${dateStr}-${hour}`} className="border-l p-0.5 cursor-pointer hover:bg-salmon-50 group"
+                    <div key={`${dateStr}-${hour}`} className="border-l p-0.5 cursor-pointer hover:bg-blue-50 group"
                       onClick={() => { setSelectedDate(dateStr); setView('month'); }}>
-                      {hourAppAppts.map(a => (
-                        <div key={a.id} className="text-[10px] p-1 rounded bg-salmon-100 text-salmon-800 mb-0.5">
-                          <p className="font-medium truncate">{a.patientName}</p>
-                          <p>{a.startTime}</p>
-                        </div>
-                      ))}
                       {hourGcal.map(e => (
                         <div key={e.id} className="text-[10px] p-1 rounded bg-blue-100 text-blue-800 mb-0.5">
                           <p className="font-medium truncate">{e.summary}</p>
                           <p>{getTimeFromISO(e.start)}</p>
                         </div>
                       ))}
-                      {hourAppAppts.length === 0 && hourGcal.length === 0 && (
+                      {hourGcal.length === 0 && (
                         <div className="hidden group-hover:flex items-center justify-center h-full">
-                          <span className="text-[9px] text-salmon-400">+ cita</span>
+                          <span className="text-[9px] text-blue-400">+ cita</span>
                         </div>
                       )}
                     </div>
