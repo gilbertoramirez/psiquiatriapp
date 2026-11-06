@@ -90,18 +90,23 @@ export async function listEvents(userId: string, timeMin: string, timeMax: strin
   });
 }
 
-export async function createEvent(userId: string, event: { summary: string; description?: string; startDateTime: string; endDateTime: string }): Promise<CalendarEvent | null> {
+export async function createEvent(userId: string, event: { summary: string; description?: string; startDateTime: string; endDateTime: string; attendeeEmail?: string }): Promise<CalendarEvent | null> {
   const token = await getAccessToken(userId);
   if (!token) return null;
-  const res = await fetch(`${CALENDAR_API}/calendars/primary/events`, {
+  const body: Record<string, unknown> = {
+    summary: event.summary,
+    description: event.description,
+    start: { dateTime: `${event.startDateTime}:00`, timeZone: 'America/Mexico_City' },
+    end: { dateTime: `${event.endDateTime}:00`, timeZone: 'America/Mexico_City' },
+    conferenceData: { createRequest: { requestId: `${Date.now()}`, conferenceSolutionKey: { type: 'hangoutsMeet' } } },
+  };
+  if (event.attendeeEmail) {
+    body.attendees = [{ email: event.attendeeEmail }];
+  }
+  const res = await fetch(`${CALENDAR_API}/calendars/primary/events?conferenceDataVersion=1&sendUpdates=all`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      summary: event.summary,
-      description: event.description,
-      start: { dateTime: `${event.startDateTime}:00`, timeZone: 'America/Mexico_City' },
-      end: { dateTime: `${event.endDateTime}:00`, timeZone: 'America/Mexico_City' },
-    }),
+    body: JSON.stringify(body),
   });
   const data = await res.json();
   if (!data.id) return null;

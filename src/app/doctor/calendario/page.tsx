@@ -23,12 +23,13 @@ interface TimeSlot { time: string; available: boolean; }
 interface NewApptForm {
   patientId: string;
   patientNameFree: string;
+  patientEmail: string;
   time: string;
   type: 'initial' | 'followup' | 'urgency';
   notes: string;
 }
 
-const emptyForm: NewApptForm = { patientId: '', patientNameFree: '', time: '', type: 'followup', notes: '' };
+const emptyForm: NewApptForm = { patientId: '', patientNameFree: '', patientEmail: '', time: '', type: 'followup', notes: '' };
 
 function getToken(): string | null {
   if (typeof window === 'undefined') return null;
@@ -110,6 +111,20 @@ function NewAppointmentModal({
               <input className={fieldCls} value={form.patientNameFree} onChange={e => onChange({ ...form, patientNameFree: e.target.value })} placeholder="Nombre completo" />
             </div>
           )}
+
+          <div>
+            <label className={labelCls}>
+              Correo del paciente
+              <span className="ml-1 text-gray-400 font-normal">(para invite + Google Meet)</span>
+            </label>
+            <input
+              className={fieldCls}
+              type="email"
+              value={form.patientEmail}
+              onChange={e => onChange({ ...form, patientEmail: e.target.value })}
+              placeholder="correo@ejemplo.com"
+            />
+          </div>
 
           <div>
             <label className={labelCls}>Hora <span className="text-red-500">*</span></label>
@@ -269,6 +284,7 @@ export default function CalendarioPage() {
       const payload: Record<string, string> = { date: selectedDate, startTime: form.time, type: form.type, notes: form.notes, doctorId: 'self' };
       if (needsFreePatient) { payload.patientNameFree = form.patientNameFree.trim(); payload.patientId = ''; }
       else payload.patientId = form.patientId;
+      if (form.patientEmail.trim()) payload.patientEmail = form.patientEmail.trim();
 
       await appointmentsApi.create(payload);
       await loadAppointments();

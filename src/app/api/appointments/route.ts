@@ -84,7 +84,7 @@ export async function POST(request: NextRequest) {
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
 
   try {
-    const { doctorId: rawDoctorId, patientId, patientNameFree, date, startTime, type, notes } = await request.json();
+    const { doctorId: rawDoctorId, patientId, patientNameFree, patientEmail, date, startTime, type, notes } = await request.json();
 
     if (!date || !startTime) {
       return NextResponse.json({ error: 'Datos incompletos' }, { status: 400 });
@@ -178,11 +178,13 @@ export async function POST(request: NextRequest) {
       const gcalConnected = await hasCalendarConnected(resolvedDoctorId);
       if (gcalConnected) {
         const typeLabel = type === 'initial' ? 'Primera consulta' : type === 'urgency' ? 'Urgencia' : 'Seguimiento';
+        const attendeeEmail = patientEmail || (patient?.email && !patient.email.startsWith('sin-cuenta-') ? patient.email : undefined);
         await createEvent(resolvedDoctorId, {
           summary: `${typeLabel} - ${patientName}`,
           description: notes || undefined,
           startDateTime: `${date}T${startTime}`,
           endDateTime: `${date}T${endTime}`,
+          attendeeEmail,
         });
       }
     } catch { /* non-fatal */ }
